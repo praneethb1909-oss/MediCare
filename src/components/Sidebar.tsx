@@ -25,7 +25,9 @@ import {
   MessageSquare,
   HelpCircle,
   Moon,
-  Sun
+  Sun,
+  Info,
+  Phone
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -60,6 +62,8 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'admin-inventory', label: 'Inventory', icon: Package },
       { id: 'admin-reports', label: 'Reports & Analytics', icon: BarChart3 },
       { id: 'admin-users', label: 'Roles & Users', icon: UserCog },
+      { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'contact-us', label: 'Contact Us', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
     doctor: [
@@ -71,6 +75,8 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'doctor-notes', label: 'Case Notes', icon: ClipboardList },
       { id: 'doctor-notifications', label: 'Notifications', icon: Bell },
       { id: 'doctor-profile', label: 'Profile', icon: UserCircle },
+      { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'contact-us', label: 'Contact Us', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
     patient: [
@@ -84,6 +90,8 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'patient-find-hospital', label: 'Find Hospital', icon: Building2 },
       { id: 'patient-support', label: 'Support / Chat', icon: MessageSquare },
       { id: 'patient-profile', label: 'Profile', icon: UserCircle },
+      { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'contact-us', label: 'Contact Us', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ]
   };

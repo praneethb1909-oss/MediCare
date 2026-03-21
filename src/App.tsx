@@ -25,9 +25,13 @@ import { SupportChatPage } from './components/SupportChatPage';
 import { NotificationsPage } from './components/NotificationsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { TelemedicineUI } from './components/TelemedicineUI';
+import { ContactUs } from './components/ContactUs';
+import { AboutUs } from './components/AboutUs';
 import { Activity } from 'lucide-react';
 
 type View = 
+  // Shared Views
+  | 'about-us' | 'contact-us'
   // Admin Views
   | 'admin-portal' | 'admin-patients' | 'admin-doctors' | 'admin-departments' 
   | 'admin-beds' | 'admin-lab' | 'admin-pharmacy' | 'admin-billing' 
@@ -151,6 +155,10 @@ function AppContent() {
   const currentRole = role || (isDevelopmentSkipLogin ? 'patient' : null);
 
   const renderContent = () => {
+    // Shared Global Views
+    if (viewState.current === 'about-us') return <AboutUs />;
+    if (viewState.current === 'contact-us') return <ContactUs />;
+
     // Role-Based Routing
     if (currentRole === 'doctor') {
       switch (viewState.current) {
