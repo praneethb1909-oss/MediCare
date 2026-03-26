@@ -22,25 +22,25 @@ export function DashboardLayout({ children, currentView, setView, role, user }: 
   }, [currentView]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex relative safe-area-padding">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row relative safe-area-padding">
       {/* Sidebar Overlay for Mobile */}
-      {isSidebarOpen && window.innerWidth <= 1024 && (
-        <div 
+      {isSidebarOpen && (
+        <div
           className="fixed inset-0 bg-black/50 z-40 transition-opacity animate-fadeIn lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-      
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
+
+      <Sidebar
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
         currentView={currentView}
         setView={setView}
         role={role}
       />
-      <main 
-        className={`flex-1 flex flex-col transition-all duration-300 w-full ${
-          isSidebarOpen && window.innerWidth > 1024 ? 'ml-64' : window.innerWidth > 1024 ? 'ml-20' : 'ml-0'
+      <main
+        className={`flex-1 flex flex-col transition-all duration-300 w-full lg:ml-0 ${
+          isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
         }`}
       >
         <Header role={role} user={user} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />

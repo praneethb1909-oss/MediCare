@@ -1,34 +1,5 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Users, 
-  Stethoscope, 
-  Building2, 
-  Settings, 
-  ChevronLeft, 
-  ChevronRight,
-  LogOut,
-  Activity,
-  Bed,
-  TestTube2,
-  Pill,
-  Receipt,
-  Package,
-  BarChart3,
-  UserCog,
-  FileText,
-  ClipboardList,
-  Bell,
-  UserCircle,
-  Search,
-  MessageSquare,
-  HelpCircle,
-  Moon,
-  Sun,
-  Info,
-  Phone
-} from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Stethoscope, Building2, Settings, ChevronLeft, ChevronRight, LogOut, Activity, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText, ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, HelpCircle, Moon, Sun, Info, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
@@ -99,9 +70,9 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
   const items = menuItems[role] || [];
 
   return (
-    <aside 
-      className={`fixed top-0 left-0 h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 transition-all duration-300 z-50 pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)] hidden lg:block ${
-        isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-20'
+    <aside
+      className={`fixed lg:static top-0 left-0 h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 transition-all duration-300 z-50 pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)] ${
+        isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20 w-64'
       }`}
     >
       <div className="flex flex-col h-full">

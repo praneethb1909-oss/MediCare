@@ -47,14 +47,14 @@ export function MobileBottomNav({ currentView, setView, role }: MobileBottomNavP
   const items = getNavItems();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-50 lg:hidden safe-area-pb">
+    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-50 lg:hidden safe-area-pb pointer-events-auto">
       {items.map((item) => {
         const isActive = currentView === item.id;
         return (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`flex flex-col items-center gap-1 transition-all duration-300 ${
+            className={`flex flex-col items-center gap-1 transition-all duration-300 p-2 flex-1 pointer-events-auto ${
               isActive ? 'text-blue-600 dark:text-blue-400 scale-110' : 'text-slate-400 dark:text-slate-500'
             }`}
           >
@@ -65,11 +65,11 @@ export function MobileBottomNav({ currentView, setView, role }: MobileBottomNavP
           </button>
         );
       })}
-      
+
       {role === 'patient' && (
-        <button 
+        <button
           onClick={() => setView('hospitals')}
-          className="absolute -top-8 left-1/2 -translate-x-1/2 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl shadow-blue-200 dark:shadow-none flex items-center justify-center border-4 border-slate-50 dark:border-slate-950 active:scale-95 transition-transform"
+          className="absolute -top-8 left-1/2 -translate-x-1/2 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl shadow-blue-200 dark:shadow-none flex items-center justify-center border-4 border-slate-50 dark:border-slate-950 active:scale-95 transition-transform z-50 pointer-events-auto"
         >
           <Plus size={28} />
         </button>

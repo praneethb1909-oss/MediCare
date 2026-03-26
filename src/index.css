@@ -31,6 +31,10 @@
   .safe-area-pb {
     padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
   }
+
+  button {
+    @apply touch-none;
+  }
 }
 
 @layer components {
