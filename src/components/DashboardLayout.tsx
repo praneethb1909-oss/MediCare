@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileBottomNav } from './mobile/MobileBottomNav';
+import { Footer } from './Footer';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -49,6 +50,7 @@ export function DashboardLayout({ children, currentView, setView, role, user }: 
             {children}
           </div>
         </div>
+        <Footer setView={setView} />
       </main>
 
       <MobileBottomNav currentView={currentView} setView={setView} role={role} />

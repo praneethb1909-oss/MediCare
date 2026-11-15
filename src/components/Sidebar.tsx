@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Users, Stethoscope, Building2, Settings, ChevronLeft, ChevronRight, LogOut, Activity, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText, ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, HelpCircle, Moon, Sun, Info, Phone } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Stethoscope, Building2, Settings, ChevronLeft, ChevronRight, LogOut, Activity, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText, ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, HelpCircle, Moon, Sun, Info, Phone, Layers } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
@@ -34,6 +34,7 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'admin-reports', label: 'Reports & Analytics', icon: BarChart3 },
       { id: 'admin-users', label: 'Roles & Users', icon: UserCog },
       { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'services', label: 'Services', icon: Layers },
       { id: 'contact-us', label: 'Contact Us', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
@@ -47,6 +48,7 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'doctor-notifications', label: 'Notifications', icon: Bell },
       { id: 'doctor-profile', label: 'Profile', icon: UserCircle },
       { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'services', label: 'Services', icon: Layers },
       { id: 'contact-us', label: 'Contact Us', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
@@ -62,6 +64,7 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'patient-support', label: 'Support / Chat', icon: MessageSquare },
       { id: 'patient-profile', label: 'Profile', icon: UserCircle },
       { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'services', label: 'Services', icon: Layers },
       { id: 'contact-us', label: 'Contact Us', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ]

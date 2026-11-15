@@ -27,11 +27,12 @@ import { SettingsPage } from './components/SettingsPage';
 import { TelemedicineUI } from './components/TelemedicineUI';
 import { ContactUs } from './components/ContactUs';
 import { AboutUs } from './components/AboutUs';
+import { ServicesPage } from './components/ServicesPage';
 import { Activity } from 'lucide-react';
 
 type View = 
   // Shared Views
-  | 'about-us' | 'contact-us'
+  | 'about-us' | 'contact-us' | 'services'
   // Admin Views
   | 'admin-portal' | 'admin-patients' | 'admin-doctors' | 'admin-departments' 
   | 'admin-beds' | 'admin-lab' | 'admin-pharmacy' | 'admin-billing' 
@@ -158,6 +159,7 @@ function AppContent() {
     // Shared Global Views
     if (viewState.current === 'about-us') return <AboutUs />;
     if (viewState.current === 'contact-us') return <ContactUs />;
+    if (viewState.current === 'services') return <ServicesPage />;
 
     // Role-Based Routing
     if (currentRole === 'doctor') {
