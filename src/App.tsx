@@ -19,6 +19,7 @@ import { ProfilePage } from './components/ProfilePage';
 import { MedicalReportPage } from './components/MedicalReportPage';
 import { MyAppointments } from './components/MyAppointments';
 import { PrescriptionsPage } from './components/PrescriptionsPage';
+import { SmartMedicationSchedule } from './components/SmartMedicationSchedule';
 import { BillingPage } from './components/BillingPage';
 import { FindDoctorPage } from './components/FindDoctorPage';
 import { SupportChatPage } from './components/SupportChatPage';
@@ -28,6 +29,8 @@ import { TelemedicineUI } from './components/TelemedicineUI';
 import { ContactUs } from './components/ContactUs';
 import { AboutUs } from './components/AboutUs';
 import { ServicesPage } from './components/ServicesPage';
+import { LandingPage } from './components/LandingPage';
+import { MedicareWaveLoader } from './components/common/MedicareWaveLoader';
 import { Activity } from 'lucide-react';
 
 type View = 
@@ -74,6 +77,8 @@ function PlaceholderView({ title }: { title: string }) {
 
 function AppContent() {
   const { user, loading, role } = useAuth();
+  const [publicView, setPublicView] = useState<'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'>('landing');
+  const [authRole, setAuthRole] = useState<'patient' | 'doctor' | 'admin'>('patient');
   const [viewState, setViewState] = useState<ViewState>({ 
     current: 'dashboard' 
   });
@@ -138,21 +143,120 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center transition-colors duration-300">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading MediCare...</p>
-        </div>
-      </div>
+      <MedicareWaveLoader 
+        variant="fullscreen" 
+        text="Starting Olmera Healthcare" 
+        subtitle="Connecting clinical telemetry, verified records, and care network..." 
+      />
     );
   }
 
   const isDevelopmentSkipLogin = false;
   if (!user && !isDevelopmentSkipLogin) {
-    return <Auth />;
+    if (publicView === 'auth') {
+      return (
+        <Auth 
+          onBack={() => setPublicView('landing')} 
+          initialRole={authRole} 
+        />
+      );
+    }
+
+    if (publicView === 'doctors') {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
+          <FindDoctorPage 
+            onBack={() => setPublicView('landing')} 
+            onSelectDoctor={(doctorId) => {
+              setAuthRole('patient');
+              setPublicView('auth');
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (publicView === 'hospitals') {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
+          <HospitalList 
+            onBack={() => setPublicView('landing')} 
+            onSelectHospital={(hospitalId) => {
+              setAuthRole('patient');
+              setPublicView('auth');
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (publicView === 'services') {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
+          <div className="max-w-7xl mx-auto">
+            <button
+              onClick={() => setPublicView('landing')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              ← Back to Homepage
+            </button>
+            <ServicesPage />
+          </div>
+        </div>
+      );
+    }
+
+    if (publicView === 'about-us') {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
+          <div className="max-w-7xl mx-auto">
+            <button
+              onClick={() => setPublicView('landing')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              ← Back to Homepage
+            </button>
+            <AboutUs />
+          </div>
+        </div>
+      );
+    }
+
+    if (publicView === 'contact-us') {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
+          <div className="max-w-7xl mx-auto">
+            <button
+              onClick={() => setPublicView('landing')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              ← Back to Homepage
+            </button>
+            <ContactUs />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <LandingPage 
+        onOpenAuth={(selectedRole) => {
+          if (selectedRole) setAuthRole(selectedRole);
+          setPublicView('auth');
+        }}
+        onNavigateToView={(view) => {
+          if (['doctors', 'hospitals', 'services', 'about-us', 'contact-us'].includes(view)) {
+            setPublicView(view as any);
+          } else {
+            setAuthRole('patient');
+            setPublicView('auth');
+          }
+        }}
+      />
+    );
   }
 
-  const currentUser = user || (isDevelopmentSkipLogin ? { email: 'dev.user@medicare.in', uid: 'dev-user-id' } : null);
+  const currentUser = user || (isDevelopmentSkipLogin ? { email: 'dev.user@olmera.health', uid: 'dev-user-id' } : null);
   const currentRole = role || (isDevelopmentSkipLogin ? 'patient' : null);
 
   const renderContent = () => {
@@ -211,11 +315,13 @@ function AppContent() {
       case 'payment':
         return <PaymentPage amount={1200} onSuccess={() => setView('dashboard')} onCancel={() => setView('dashboard')} />;
       case 'patient-appointments': return <MyAppointments />;
-      case 'patient-records': return <PlaceholderView title="Medical Records" />;
+      case 'patient-records': return <MedicalReportPage pageLabel="Centralized Digital Health Records" />;
+      case 'patient-medical-reports': return <MedicalReportPage pageLabel="Lab & Diagnostic Reports" />;
       case 'patient-lab': return <MedicalReportPage pageLabel="Lab Reports" />;
-      case 'patient-prescriptions': return <PrescriptionsPage />;
+      case 'patient-prescriptions': return <SmartMedicationSchedule />;
       case 'patient-billing': return <BillingPage />;
       case 'patient-find-doctor': return <FindDoctorPage />;
+      case 'patient-find-hospital': return <HospitalList onSelectHospital={selectHospital} />;
       case 'patient-support': return <SupportChatPage />;
       case 'patient-profile': return <ProfilePage />;
       case 'patient-notifications': return <NotificationsPage />;
@@ -227,8 +333,8 @@ function AppContent() {
 
   console.log('App Rendering', { currentRole, viewState: viewState.current });
 
-  // AdminPortal has its own layout, so we only wrap Patient/Doctor in DashboardLayout
-  if (currentRole === 'admin') {
+  // AdminPortal has its own layout, so we only wrap Patient/Doctor (or Admin viewing shared views) in DashboardLayout
+  if (currentRole === 'admin' && viewState.current !== 'about-us' && viewState.current !== 'contact-us' && viewState.current !== 'services') {
     return renderContent();
   }
 

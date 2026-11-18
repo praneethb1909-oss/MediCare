@@ -1,6 +1,14 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Users, Stethoscope, Building2, Settings, ChevronLeft, ChevronRight, LogOut, Activity, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText, ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, HelpCircle, Moon, Sun, Info, Phone, Layers } from 'lucide-react';
+import {
+  LayoutDashboard, Calendar, Users, Building2, Settings, ChevronLeft, ChevronRight,
+  LogOut, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText,
+  ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, Info, Phone, Layers,
+  Sun, Moon, UserCheck, Cpu
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { OlmeraWordmark } from './brand/OlmeraWordmark';
+import logoMarkLight from '../../brand/assets/logo-mark-light-on-dark.svg';
+import logoMarkDark from '../../brand/assets/logo-mark-dark-on-light.svg';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -12,60 +20,78 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: SidebarProps) {
   const { signOut } = useAuth();
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    }
+  }, []);
 
   const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark');
+    const nextDark = !document.documentElement.classList.contains('dark');
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('olmera_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('olmera_theme', 'light');
+    }
+    setIsDarkMode(nextDark);
   };
 
   const menuItems = {
     admin: [
       { id: 'admin-portal', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'admin-patients', label: 'Patient Management', icon: Users },
-      { id: 'admin-doctors', label: 'Doctor Management', icon: Stethoscope },
+      { id: 'admin-patients', label: 'Patients', icon: Users },
+      { id: 'admin-doctors', label: 'Specialists', icon: UserCheck },
       { id: 'admin-departments', label: 'Departments', icon: Building2 },
       { id: 'admin-beds', label: 'Beds & Wards', icon: Bed },
       { id: 'admin-medical-reports', label: 'Medical Reports', icon: FileText },
-      { id: 'admin-lab', label: 'Lab & Diagnostics', icon: TestTube2 },
+      { id: 'admin-lab', label: 'Diagnostics', icon: TestTube2 },
       { id: 'admin-pharmacy', label: 'Pharmacy', icon: Pill },
       { id: 'admin-billing', label: 'Billing & Insurance', icon: Receipt },
       { id: 'admin-inventory', label: 'Inventory', icon: Package },
-      { id: 'admin-reports', label: 'Reports & Analytics', icon: BarChart3 },
-      { id: 'admin-users', label: 'Roles & Users', icon: UserCog },
-      { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'admin-reports', label: 'Analytics', icon: BarChart3 },
+      { id: 'admin-users', label: 'Roles & Staff', icon: UserCog },
+      { id: 'about-us', label: 'About Olmera', icon: Info },
       { id: 'services', label: 'Services', icon: Layers },
-      { id: 'contact-us', label: 'Contact Us', icon: Phone },
+      { id: 'contact-us', label: 'Contact', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
     doctor: [
       { id: 'doctor-portal', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'doctor-appointments', label: 'My Appointments', icon: Calendar },
-      { id: 'doctor-patients', label: 'My Patients', icon: Users },
-      { id: 'doctor-medical-reports', label: 'Medical Reports', icon: FileText },
+      { id: 'doctor-appointments', label: 'Consultations', icon: Calendar },
+      { id: 'doctor-patients', label: 'Patients', icon: Users },
+      { id: 'doctor-medical-reports', label: 'Diagnostics', icon: FileText },
       { id: 'doctor-prescriptions', label: 'Prescriptions', icon: Pill },
-      { id: 'doctor-notes', label: 'Case Notes', icon: ClipboardList },
+      { id: 'doctor-notes', label: 'Clinical Notes', icon: ClipboardList },
       { id: 'doctor-notifications', label: 'Notifications', icon: Bell },
       { id: 'doctor-profile', label: 'Profile', icon: UserCircle },
-      { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'about-us', label: 'About Olmera', icon: Info },
       { id: 'services', label: 'Services', icon: Layers },
-      { id: 'contact-us', label: 'Contact Us', icon: Phone },
+      { id: 'contact-us', label: 'Contact', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
     patient: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'hospitals', label: 'Book Appointment', icon: Calendar },
-      { id: 'patient-appointments', label: 'My Appointments', icon: ClipboardList },
-      { id: 'patient-medical-reports', label: 'Medical Reports', icon: FileText },
+      { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+      { id: 'hospitals', label: 'Book Consultation', icon: Calendar },
+      { id: 'patient-appointments', label: 'My Consultations', icon: ClipboardList },
+      { id: 'patient-medical-reports', label: 'Lab Reports', icon: FileText },
       { id: 'patient-prescriptions', label: 'Prescriptions', icon: Pill },
-      { id: 'patient-billing', label: 'Billing & Payments', icon: Receipt },
-      { id: 'patient-find-doctor', label: 'Find Doctor', icon: Search },
-      { id: 'patient-find-hospital', label: 'Find Hospital', icon: Building2 },
-      { id: 'patient-support', label: 'Support / Chat', icon: MessageSquare },
-      { id: 'patient-profile', label: 'Profile', icon: UserCircle },
-      { id: 'about-us', label: 'About Us', icon: Info },
+      { id: 'patient-billing', label: 'Billing & Records', icon: Receipt },
+      { id: 'patient-find-doctor', label: 'Find Specialist', icon: Search },
+      { id: 'patient-find-hospital', label: 'Network Clinics', icon: Building2 },
+      { id: 'patient-support', label: 'Care Concierge', icon: MessageSquare },
+      { id: 'patient-profile', label: 'My Profile', icon: UserCircle },
+      { id: 'about-us', label: 'About Olmera', icon: Info },
       { id: 'services', label: 'Services', icon: Layers },
-      { id: 'contact-us', label: 'Contact Us', icon: Phone },
+      { id: 'contact-us', label: 'Contact', icon: Phone },
       { id: 'settings', label: 'Settings', icon: Settings },
     ]
   };
@@ -74,61 +100,69 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
 
   return (
     <aside
-      className={`fixed lg:static top-0 left-0 h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 transition-all duration-300 z-50 pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)] ${
-        isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20 w-64'
-      }`}
+      className={`fixed top-0 left-0 bottom-0 h-screen bg-[var(--color-surface)] border-r border-[var(--color-line)] transition-all duration-300 z-50 pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)] ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20 w-64'
+        }`}
     >
       <div className="flex flex-col h-full">
-        <div className="p-4 md:p-6 flex items-center justify-between">
-          <div className={`flex items-center gap-3 ${!isOpen && 'hidden lg:flex lg:opacity-0 lg:w-0'}`}>
-            <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
-              <Activity className="w-6 h-6 text-white" />
+        {/* Header Branding */}
+        <div className="p-4 md:p-5 flex items-center justify-between border-b border-[var(--color-line)]/50 min-h-[72px]">
+          {isOpen ? (
+            <div className="flex items-center gap-3">
+              <OlmeraWordmark className="h-7 w-auto" />
             </div>
-            <span className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">MediCare</span>
-          </div>
-          <button 
+          ) : (
+            <div className="hidden lg:flex justify-center w-full">
+              <img src={logoMarkDark} alt="Olmera" className="h-7 w-7 block dark:hidden" />
+              <img src={logoMarkLight} alt="Olmera" className="h-7 w-7 hidden dark:block" />
+            </div>
+          )}
+          <button
             onClick={() => setIsOpen(!isOpen)}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
+            className="p-1.5 hover:bg-[var(--color-surface-subtle)] rounded-lg transition-colors text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+            aria-label={isOpen ? "Collapse navigation" : "Expand navigation"}
           >
-            {isOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-          {items.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className={`sidebar-item w-full ${
-                currentView === item.id ? 'sidebar-item-active' : ''
-              } ${!isOpen && 'justify-center px-0'}`}
-              title={!isOpen ? item.label : ''}
-            >
-              <item.icon size={20} />
-              {isOpen && <span className="font-medium truncate text-sm">{item.label}</span>}
-            </button>
-          ))}
+        {/* Navigation Items */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+          {items.map((item) => {
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id)}
+                className={`sidebar-item w-full ${isActive ? 'sidebar-item-active' : ''} ${!isOpen && 'justify-center px-0'
+                  }`}
+                title={!isOpen ? item.label : ''}
+              >
+                <item.icon size={18} className="flex-shrink-0" />
+                {isOpen && <span className="font-ui text-sm truncate">{item.label}</span>}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+        {/* Footer Utilities */}
+        <div className="p-3 border-t border-[var(--color-line)] space-y-1">
           <button
             onClick={toggleDarkMode}
             className={`sidebar-item w-full ${!isOpen && 'justify-center px-0'}`}
-            title={!isOpen ? 'Toggle Theme' : ''}
+            title={!isOpen ? 'Toggle Mode' : ''}
           >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            {isOpen && <span className="font-medium text-sm">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>}
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isOpen && <span className="text-sm font-ui">{isDarkMode ? 'Light Parchment' : 'Dark Mode'}</span>}
           </button>
-          
+
           <button
             onClick={() => signOut()}
-            className={`sidebar-item w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 ${
-              !isOpen && 'justify-center px-0'
-            }`}
+            className={`sidebar-item w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700 ${!isOpen && 'justify-center px-0'
+              }`}
             title={!isOpen ? 'Logout' : ''}
           >
-            <LogOut size={20} />
-            {isOpen && <span className="font-medium text-sm">Logout</span>}
+            <LogOut size={18} />
+            {isOpen && <span className="text-sm font-ui">Log Out</span>}
           </button>
         </div>
       </div>

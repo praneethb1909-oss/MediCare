@@ -8,6 +8,7 @@ import {
   MessageCircle, AlertCircle, MapPin
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Appointment {
   id: string;
@@ -74,7 +75,7 @@ export function MyAppointments() {
         }
 
         // Fetch Hospital details
-        let hospitalData = { name: 'MediCare Center' };
+        let hospitalData = { name: 'Olmera Care Center' };
         if (data.hospital_id) {
           const hDoc = await getDoc(doc(db, 'hospitals', data.hospital_id));
           if (hDoc.exists()) hospitalData = hDoc.data() as any;
@@ -124,10 +125,12 @@ export function MyAppointments() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Loading Clinical Records...</p>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Clinical Records..." 
+        subtitle="Retrieving verified appointments and clinical queue..."
+        className="my-12 min-h-[360px]"
+      />
     );
   }
 

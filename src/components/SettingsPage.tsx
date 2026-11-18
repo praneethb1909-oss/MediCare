@@ -9,6 +9,7 @@ import {
   EyeOff, Key, Lock, Briefcase
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 export function SettingsPage() {
   const { user, role } = useAuth();
@@ -160,10 +161,12 @@ export function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Synchronizing System Settings...</p>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Synchronizing System Settings..." 
+        subtitle="Loading preferences, security protocols, and device integrations"
+        className="my-12 min-h-[360px]"
+      />
     );
   }
 
@@ -215,7 +218,7 @@ export function SettingsPage() {
                   </button>
                 </div>
                 <div className="text-center sm:text-left">
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{profile.name || 'MediCare Professional'}</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{profile.name || 'Olmera Member'}</h3>
                   <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mt-1">{role} Access Level</p>
                   <p className="text-xs font-medium text-slate-400 mt-2 flex items-center justify-center sm:justify-start gap-2">
                     <Globe size={14} /> Regional Node: South India
@@ -309,11 +312,13 @@ export function SettingsPage() {
                     className="btn-primary px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-blue-100 dark:shadow-none flex items-center gap-3 active:scale-95 transition-all disabled:opacity-50"
                   >
                     {saving ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <MedicareWaveLoader variant="button" text="Synchronizing..." />
                     ) : (
-                      <Save size={18} />
+                      <>
+                        <Save size={18} />
+                        <span>Synchronize Profile</span>
+                      </>
                     )}
-                    Synchronize Profile
                   </button>
                 </div>
               </form>
@@ -374,7 +379,7 @@ export function SettingsPage() {
                       <Lock size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase tracking-widest text-[10px]">Update Passcode</h4>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest text-[10px]">Update Passcode</h4>
                       <p className="text-xs text-slate-500 font-medium">Ensure your passcode is complex and rotating regularly.</p>
                     </div>
                   </div>
@@ -394,7 +399,7 @@ export function SettingsPage() {
                 </div>
 
                 <div className="p-6 border border-red-100 dark:border-red-900/20 bg-red-50/20 dark:bg-red-900/5 rounded-3xl">
-                  <h4 className="text-sm font-black text-red-600 tracking-tight uppercase tracking-widest text-[10px] mb-2">Critical Actions</h4>
+                  <h4 className="text-sm font-black text-red-600 uppercase tracking-widest text-[10px] mb-2">Critical Actions</h4>
                   <p className="text-xs text-slate-500 font-medium mb-4">Requesting vault decommissioning will purge all local data access.</p>
                   <button className="text-red-600 text-[10px] font-black uppercase tracking-widest hover:underline">
                     Deactivate System Access

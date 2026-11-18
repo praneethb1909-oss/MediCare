@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import { doc, getDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, Clock, ArrowLeft, CheckCircle, User, Video } from 'lucide-react';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Doctor {
   id: string;
@@ -162,9 +163,12 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
 
   if (!doctor) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Specialist Profile & Schedule..." 
+        subtitle="Verifying physician consultation slots and hospital ward availability"
+        className="my-12 min-h-[300px]"
+      />
     );
   }
 
@@ -338,7 +342,7 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
                 className="w-full btn-primary py-4 text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <MedicareWaveLoader variant="button" text="Scheduling..." />
                 ) : (
                   <>
                     <CheckCircle size={20} />

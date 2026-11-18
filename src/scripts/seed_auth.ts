@@ -46,7 +46,7 @@ async function seedAuth() {
 
   try {
     // 1. Create Dr. A Suresh
-    const sureshUid = await getOrCreateUser('suresh.a@medicare.in', 'Suresh@123', 'Dr. A Suresh');
+    const sureshUid = await getOrCreateUser('suresh.a@olmera.health', 'Suresh@123', 'Dr. A Suresh');
     
     // Link Suresh to user_roles
     await setDoc(doc(db, 'user_roles', sureshUid), {
@@ -71,7 +71,7 @@ async function seedAuth() {
     }
 
     // 2. Create Demo Patient
-    const patientUid = await getOrCreateUser('patient@medicare.in', 'Patient@123', 'Demo Patient');
+    const patientUid = await getOrCreateUser('patient@olmera.health', 'Patient@123', 'Demo Patient');
     
     // Link Patient to user_roles
     await setDoc(doc(db, 'user_roles', patientUid), {
@@ -86,7 +86,7 @@ async function seedAuth() {
     await setDoc(doc(db, 'patients', patientUid), {
       id: patientUid,
       full_name: 'Demo Patient',
-      email: 'patient@medicare.in',
+      email: 'patient@olmera.health',
       age: 28,
       gender: 'Male',
       last_visit: new Date().toISOString(),

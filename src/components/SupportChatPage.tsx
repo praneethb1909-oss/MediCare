@@ -3,6 +3,7 @@ import { MessageSquare, Send, User, UserCircle, Search, MoreVertical, Phone, Vid
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Message {
   id: string;
@@ -106,8 +107,8 @@ export function SupportChatPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">MediCare Support</h4>
-                  <span className="text-[10px] font-bold text-blue-600">Active</span>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">Olmera Care Concierge</h4>
+                  <span className="text-[10px] font-bold text-emerald-600">Active</span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">Typing...</p>
               </div>
@@ -139,7 +140,7 @@ export function SupportChatPage() {
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">MediCare Support Agent</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Olmera Care Concierge</h3>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
                   <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">Online Now</span>
@@ -160,8 +161,8 @@ export function SupportChatPage() {
             className="flex-1 overflow-y-auto p-6 space-y-6"
           >
             {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+              <div className="flex items-center justify-center h-full py-12">
+                <MedicareWaveLoader variant="inline" text="Connecting to Care Concierge..." />
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-400">

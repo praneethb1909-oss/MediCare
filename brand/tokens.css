@@ -1,0 +1,73 @@
+/* Olmera design tokens. Single source of truth: never hard-code colours elsewhere. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap");
+
+:root {
+  --brand-name: "Olmera";
+  --color-primary: #0E4F4A;      /* Deep Fern: buttons, headers, icon tile */
+  --color-primary-hover: #093834;
+  --color-accent: #FF7A59;       /* Signal Coral: one highlight per screen */
+  --color-accent-hover: #E86443;
+  --color-mist: #CFE3DD;         /* secondary surfaces, charts */
+  --color-bg: #F6F2EA;           /* Parchment page background */
+  --color-surface: #FFFFFF;
+  --color-surface-subtle: #F0ECE2;
+  --color-ink: #10201E;          /* text */
+  --color-muted: #5B6B67;
+  --color-line: #E2DCCF;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-ui: "Instrument Sans", system-ui, sans-serif;
+  --radius-card: 18px;
+  --radius-btn: 12px;
+}
+
+.dark, html.dark {
+  --color-bg: #0C1514;
+  --color-surface: #13211F;
+  --color-surface-subtle: #192C29;
+  --color-ink: #EDE9DF;
+  --color-muted: #9DB0AB;
+  --color-line: #233735;
+  --color-primary: #1E7F76;
+  --color-primary-hover: #166B63;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-ui);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  opacity: 0.92;
+}
+
+.btn-accent {
+  background: var(--color-accent);
+  color: #10201E;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-accent:hover {
+  background: var(--color-accent-hover);
+}
+
+.card-olmera {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  color: var(--color-ink);
+}

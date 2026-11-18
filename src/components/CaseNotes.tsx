@@ -7,6 +7,7 @@ import {
   CheckCircle2, AlertCircle, Edit2, Trash2, Save, X, Filter
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface CaseNote {
   id: string;
@@ -151,10 +152,12 @@ export function CaseNotes() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Retrieving Clinical Records...</p>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Retrieving Clinical Case Notes..." 
+        subtitle="Loading encrypted medical observations and diagnosis documentation"
+        className="my-12 min-h-[360px]"
+      />
     );
   }
 

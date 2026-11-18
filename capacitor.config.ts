@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.medicare.app',
-  appName: 'MediCare',
+  appId: 'com.olmera.app',
+  appName: 'Olmera',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
@@ -10,11 +10,11 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
-      backgroundColor: "#2563eb",
+      backgroundColor: "#0E4F4A",
       showSpinner: true,
       androidSpinnerStyle: "large",
       iosSpinnerStyle: "small",
-      spinnerColor: "#ffffff"
+      spinnerColor: "#F4EFE6"
     }
   }
 };

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import { Building2, ChevronRight } from 'lucide-react';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Department {
   id: string;
@@ -36,9 +37,12 @@ export function DepartmentList({ onSelectDepartment }: DepartmentListProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Clinical Specialties..." 
+        subtitle="Retrieving hospital departments and clinical units"
+        className="my-8 col-span-full min-h-[260px]"
+      />
     );
   }
 

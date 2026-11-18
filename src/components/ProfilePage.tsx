@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Mail, Phone, MapPin, Building2, Save, UserCircle, Edit3, Camera } from 'lucide-react';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 export function ProfilePage() {
   const { user, role } = useAuth();
@@ -28,7 +29,8 @@ export function ProfilePage() {
     try {
       setLoading(true);
       if (role === 'admin') {
-        setProfileData({ full_name: user.email?.split('@')[0], email: user.email });
+        const cachedAvatar = localStorage.getItem(`olmera_avatar_${user.uid}`);
+        setProfileData({ full_name: user.email?.split('@')[0], email: user.email, photo_url: cachedAvatar || user.photoURL });
         setFormData(prev => ({ ...prev, full_name: user.email?.split('@')[0] || '', email: user.email || '' }));
         return;
       }
@@ -37,9 +39,10 @@ export function ProfilePage() {
       const docRef = doc(db, collectionName, user.uid);
       const docSnap = await getDoc(docRef);
 
+      const cachedAvatar = localStorage.getItem(`olmera_avatar_${user.uid}`);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setProfileData(data);
+        setProfileData({ ...data, photo_url: data.photo_url || cachedAvatar || user.photoURL });
         setFormData({
           full_name: data.full_name || data.name || '',
           email: data.email || user.email || '',
@@ -47,6 +50,8 @@ export function ProfilePage() {
           address: data.address || '',
           specialization: data.specialization || '',
         });
+      } else if (cachedAvatar) {
+        setProfileData({ photo_url: cachedAvatar });
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -64,15 +69,45 @@ export function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (PNG, JPG, or WebP).');
+      return;
+    }
+
     setUploadingPhoto(true);
     try {
-      // Simulate photo upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      alert('Profile photo updated successfully! (Simulation)');
-      await loadProfile();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+
+        // Immediately update state and localStorage
+        setProfileData((prev: any) => ({ ...prev, photo_url: dataUrl }));
+        try {
+          localStorage.setItem(`olmera_avatar_${user.uid}`, dataUrl);
+        } catch (e) {}
+
+        // Persist to Firestore
+        try {
+          const collectionName = role === 'doctor' ? 'doctors' : 'patients';
+          await updateDoc(doc(db, collectionName, user.uid), {
+            photo_url: dataUrl,
+            updated_at: new Date().toISOString()
+          });
+        } catch (dbErr) {
+          console.warn('Firestore avatar update warning:', dbErr);
+        }
+
+        setUploadingPhoto(false);
+      };
+
+      reader.onerror = () => {
+        alert('Failed to read image file.');
+        setUploadingPhoto(false);
+      };
+
+      reader.readAsDataURL(file);
     } catch (err) {
       console.error('Error uploading photo:', err);
-    } finally {
       setUploadingPhoto(false);
     }
   };
@@ -112,9 +147,12 @@ export function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Clinical Profile..." 
+        subtitle="Retrieving verified identity, contact credentials, and health history"
+        className="my-12 min-h-[320px]"
+      />
     );
   }
 
@@ -123,9 +161,17 @@ export function ProfilePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div className="flex items-center gap-6">
           <div className="relative group">
-            <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-[2rem] flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xl shadow-blue-200 dark:shadow-none overflow-hidden">
+            <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-[2rem] flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xl shadow-blue-200 dark:shadow-none overflow-hidden relative border-2 border-white dark:border-slate-800">
               {uploadingPhoto ? (
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="flex flex-col items-center justify-center p-2">
+                  <div className="w-7 h-7 border-3 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (profileData?.photo_url || user?.photoURL) ? (
+                <img 
+                  src={profileData?.photo_url || user?.photoURL} 
+                  alt={formData.full_name || 'Profile'} 
+                  className="w-full h-full object-cover rounded-[2rem]" 
+                />
               ) : (
                 <UserCircle size={64} />
               )}
@@ -238,7 +284,7 @@ export function ProfilePage() {
                   className="w-full btn-primary py-4 flex items-center justify-center gap-2"
                 >
                   {saving ? (
-                    <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <MedicareWaveLoader variant="button" text="Saving..." />
                   ) : (
                     <><Save size={20} /> Save Changes</>
                   )}

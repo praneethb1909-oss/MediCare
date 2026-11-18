@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface PaymentPageProps {
   amount: number;
@@ -114,7 +115,7 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
                   paymentMethod === 'netbanking' ? 'Net Banking' : 'Pay at Hospital',
           status: paymentMethod === 'pay_at_hospital' ? 'pay-at-hospital' : 'paid',
           serviceName: 'General Consultation', // Default
-          provider: 'MediCare Hospital'
+          provider: 'Olmera Care Network'
         });
       }
 
@@ -139,9 +140,9 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
     const code = coupon.trim().toUpperCase();
     if (!code) return;
     // Simple coupon rules for demo
-    if (code === 'MEDI10') {
+    if (code === 'OLMERA10' || code === 'MEDI10') {
       setDiscount(Math.round(amount * 0.1));
-    } else if (code === 'MEDI100') {
+    } else if (code === 'OLMERA100' || code === 'MEDI100') {
       setDiscount(100);
     } else {
       setDiscount(0);
@@ -158,18 +159,18 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
 
     // Header
     doc.setFontSize(22);
-    doc.setTextColor(37, 99, 235); // Blue-600
-    doc.text('MediCare Invoice', 20, 20);
+    doc.setTextColor(14, 79, 74); // Deep Fern #0E4F4A
+    doc.text('Olmera Care Invoice', 20, 20);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Invoice #: MC-${invoiceNum}`, 150, 20);
+    doc.text(`Invoice #: OL-${invoiceNum}`, 150, 20);
     doc.text(`Date: ${dateStr}`, 150, 25);
 
     // Hospital Info
     doc.setFontSize(12);
     doc.setTextColor(0);
-    doc.text('MediCare Multispecialty Hospital', 20, 40);
+    doc.text('Olmera Multispecialty Health Network', 20, 40);
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text('Main Road, Health City', 20, 45);
@@ -215,10 +216,10 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
     // Footer
     doc.setFontSize(10);
     doc.setTextColor(150);
-    doc.text('Thank you for choosing MediCare. Get well soon!', 105, 180, { align: 'center' });
+    doc.text('Thank you for choosing Olmera. Care, quietly connected.', 105, 180, { align: 'center' });
     doc.text('This is a computer-generated invoice and does not require a signature.', 105, 185, { align: 'center' });
 
-    doc.save(`MediCare_Invoice_${invoiceNum}.pdf`);
+    doc.save(`Olmera_Invoice_${invoiceNum}.pdf`);
   };
 
   if (success) {
@@ -370,7 +371,7 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
                 className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2 mt-4"
               >
                 {loading ? (
-                  <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <MedicareWaveLoader variant="button" text="Processing Payment..." />
                 ) : (
                   <>
                     {paymentMethod === 'pay_at_hospital' ? 'Confirm & Generate Invoice' : `Pay ₹${totalDue.toLocaleString('en-IN')}`}

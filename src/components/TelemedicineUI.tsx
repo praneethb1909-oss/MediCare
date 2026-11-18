@@ -22,12 +22,23 @@ import {
   Send,
   X,
   Download,
-  CheckCircle2
+  CheckCircle2,
+  Eye,
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 
 interface TelemedicineUIProps {
   doctorName?: string;
   onBack: () => void;
+}
+
+interface SharedDoc {
+  id: string;
+  name: string;
+  url: string;
+  size: string;
+  uploadedAt: string;
 }
 
 export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: TelemedicineUIProps) {
@@ -37,6 +48,18 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
   const [callDuration, setCallDuration] = useState(0);
   const [step, setViewStep] = useState<'checklist' | 'upload' | 'call' | 'summary'>('checklist');
   const [checklist, setChecklist] = useState<boolean[]>([false, false, false, false]);
+
+  const [uploadedDocs, setUploadedDocs] = useState<SharedDoc[]>([
+    { 
+      id: 'doc-seed-1', 
+      name: 'Blood_Test_Feb24.pdf', 
+      url: 'https://example.com/blood-test.pdf', 
+      size: '2.4 MB', 
+      uploadedAt: '10:42 AM' 
+    }
+  ]);
+  const [previewDoc, setPreviewDoc] = useState<SharedDoc | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     let interval: any;
@@ -52,6 +75,35 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const fileList = Array.from(files);
+
+    fileList.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        const newDoc: SharedDoc = {
+          id: `tele-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          name: file.name,
+          url: dataUrl,
+          size: `${sizeMb} MB`,
+          uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setUploadedDocs(prev => [newDoc, ...prev]);
+        setIsUploading(false);
+      };
+      reader.onerror = () => {
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   if (step === 'checklist') {
@@ -131,21 +183,73 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
             <Upload size={40} strokeWidth={2.5} />
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">Clinical Documents</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium mb-10 max-w-md mx-auto">
+          <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 max-w-md mx-auto">
             Upload any relevant medical reports or prescriptions for the doctor to review during the session.
           </p>
 
           <div 
             onClick={() => document.getElementById('tele-upload')?.click()}
-            className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 mb-10 group hover:border-[#1E88E5] transition-all cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
+            className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-8 mb-6 group hover:border-[#1E88E5] transition-all cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
           >
-            <input id="tele-upload" type="file" className="hidden" multiple />
-            <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400 group-hover:text-[#1E88E5] shadow-sm transition-colors">
-              <Plus size={32} />
+            <input 
+              id="tele-upload" 
+              type="file" 
+              className="hidden" 
+              multiple 
+              accept="image/*,.pdf"
+              onChange={handleDocumentUpload} 
+            />
+            <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400 group-hover:text-[#1E88E5] shadow-sm transition-colors">
+              <Plus size={28} />
             </div>
-            <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Select Files</p>
-            <p className="text-xs text-slate-400 mt-2">PDF, PNG, JPG (Max 10MB each)</p>
+            <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">
+              {isUploading ? 'Attaching Clinical Documents...' : 'Select Files to Share'}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">PDF, PNG, JPG (Instant Encryption)</p>
           </div>
+
+          {uploadedDocs.length > 0 && (
+            <div className="mb-8 space-y-3 text-left">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Attached for Consultation ({uploadedDocs.length})</span>
+              <div className="max-h-56 overflow-y-auto space-y-2.5 pr-1">
+                {uploadedDocs.map(doc => (
+                  <div key={doc.id} className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl flex-shrink-0">
+                        <FileText size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{doc.name}</p>
+                        <p className="text-[10px] text-slate-400">{doc.size} • Uploaded {doc.uploadedAt}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewDoc(doc);
+                        }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        title="View Document"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedDocs(prev => prev.filter(d => d.id !== doc.id));
+                        }}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        title="Remove Document"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-4">
             <button onClick={() => setViewStep('call')} className="flex-1 btn-outline py-4">Skip for Now</button>
@@ -157,6 +261,92 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
             </button>
           </div>
         </div>
+
+        {/* Document Preview Modal */}
+        {previewDoc && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[110] flex items-center justify-center p-4 sm:p-6 animate-fadeIn text-left">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-line)] w-full max-w-4xl h-[85vh] rounded-[2rem] overflow-hidden flex flex-col shadow-2xl">
+              <div className="p-5 border-b border-[var(--color-line)] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-mist)] text-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-[var(--color-ink)] truncate">{previewDoc.name}</h3>
+                    <p className="text-xs text-[var(--color-muted)]">{previewDoc.size} • Consultation Document</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewDoc.url}
+                    download={previewDoc.name}
+                    className="btn-outline px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 rounded-xl"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                  <button 
+                    onClick={() => setPreviewDoc(null)}
+                    className="p-2 hover:bg-[var(--color-surface-subtle)] rounded-xl text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 p-4 bg-[var(--color-surface-subtle)]/50 flex items-center justify-center overflow-hidden">
+                {previewDoc.url.includes('pdf') || previewDoc.url.startsWith('data:application/pdf') || previewDoc.url.endsWith('.pdf') ? (
+                  <iframe src={previewDoc.url} className="w-full h-full rounded-xl bg-white border border-[var(--color-line)] shadow-inner" title={previewDoc.name} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center overflow-auto p-2">
+                    <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-full object-contain rounded-xl bg-white shadow-lg border border-[var(--color-line)]" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Call Document Preview Modal */}
+        {previewDoc && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[120] flex items-center justify-center p-4 sm:p-6 animate-fadeIn text-left">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-line)] w-full max-w-4xl h-[85vh] rounded-[2rem] overflow-hidden flex flex-col shadow-2xl">
+              <div className="p-5 border-b border-[var(--color-line)] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-mist)] text-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-[var(--color-ink)] truncate">{previewDoc.name}</h3>
+                    <p className="text-xs text-[var(--color-muted)]">{previewDoc.size} • Consultation Document</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewDoc.url}
+                    download={previewDoc.name}
+                    className="btn-outline px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 rounded-xl"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                  <button 
+                    onClick={() => setPreviewDoc(null)}
+                    className="p-2 hover:bg-[var(--color-surface-subtle)] rounded-xl text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 p-4 bg-[var(--color-surface-subtle)]/50 flex items-center justify-center overflow-hidden">
+                {previewDoc.url.includes('pdf') || previewDoc.url.startsWith('data:application/pdf') || previewDoc.url.endsWith('.pdf') ? (
+                  <iframe src={previewDoc.url} className="w-full h-full rounded-xl bg-white border border-[var(--color-line)] shadow-inner" title={previewDoc.name} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center overflow-auto p-2">
+                    <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-full object-contain rounded-xl bg-white shadow-lg border border-[var(--color-line)]" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -257,15 +447,40 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
             
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="space-y-4">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Shared Documents</span>
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex items-center gap-4 cursor-pointer hover:bg-blue-100 transition-all group">
-                  <div className="p-2 bg-white dark:bg-slate-800 rounded-xl text-[#1E88E5]">
-                    <FileText size={20} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-black text-slate-900 dark:text-white">Blood_Test_Feb24.pdf</p>
-                    <p className="text-[10px] text-blue-600 font-bold">Patient Uploaded</p>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Live Shared Documents ({uploadedDocs.length})
+                  </span>
+                  <label className="text-[10px] font-black text-[#1E88E5] hover:underline cursor-pointer flex items-center gap-1 uppercase tracking-widest">
+                    <Plus size={12} /> Add File
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      multiple 
+                      accept="image/*,.pdf" 
+                      onChange={handleDocumentUpload} 
+                    />
+                  </label>
+                </div>
+
+                <div className="space-y-2.5">
+                  {uploadedDocs.map(doc => (
+                    <div 
+                      key={doc.id} 
+                      onClick={() => setPreviewDoc(doc)}
+                      className="p-3.5 bg-blue-50/70 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800 flex items-center gap-3 cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/40 transition-all group"
+                      title="Click to view full document"
+                    >
+                      <div className="p-2 bg-white dark:bg-slate-800 rounded-xl text-[#1E88E5] group-hover:scale-105 transition-transform flex-shrink-0">
+                        <FileText size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-900 dark:text-white truncate">{doc.name}</p>
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">{doc.size} • Tap to Inspect</p>
+                      </div>
+                      <Eye size={16} className="text-slate-400 group-hover:text-[#1E88E5] flex-shrink-0 transition-colors" />
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -290,6 +505,49 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
                     <Send size={18} />
                   </button>
                </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Call Document Preview Modal */}
+        {previewDoc && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[120] flex items-center justify-center p-4 sm:p-6 animate-fadeIn text-left">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-line)] w-full max-w-4xl h-[85vh] rounded-[2rem] overflow-hidden flex flex-col shadow-2xl">
+              <div className="p-5 border-b border-[var(--color-line)] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-mist)] text-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-[var(--color-ink)] truncate">{previewDoc.name}</h3>
+                    <p className="text-xs text-[var(--color-muted)]">{previewDoc.size} • Consultation Document</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewDoc.url}
+                    download={previewDoc.name}
+                    className="btn-outline px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 rounded-xl"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                  <button 
+                    onClick={() => setPreviewDoc(null)}
+                    className="p-2 hover:bg-[var(--color-surface-subtle)] rounded-xl text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 p-4 bg-[var(--color-surface-subtle)]/50 flex items-center justify-center overflow-hidden">
+                {previewDoc.url.includes('pdf') || previewDoc.url.startsWith('data:application/pdf') || previewDoc.url.endsWith('.pdf') ? (
+                  <iframe src={previewDoc.url} className="w-full h-full rounded-xl bg-white border border-[var(--color-line)] shadow-inner" title={previewDoc.name} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center overflow-auto p-2">
+                    <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-full object-contain rounded-xl bg-white shadow-lg border border-[var(--color-line)]" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

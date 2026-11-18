@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { User, Mail, Phone, Calendar, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Doctor {
   id: string;
@@ -81,9 +82,12 @@ export function DoctorList({ departmentId, hospitalId, onSelectDoctor, onBack }:
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Department Specialists..." 
+        subtitle="Verifying physician availability and consultation slots"
+        className="my-12 min-h-[300px]"
+      />
     );
   }
 

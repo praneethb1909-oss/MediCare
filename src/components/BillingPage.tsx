@@ -3,6 +3,7 @@ import { Receipt, IndianRupee, Download, Search, Filter, CheckCircle2, Clock, Al
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Transaction {
   id: string;
@@ -91,9 +92,12 @@ export function BillingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Billing & Insurance Telemetry..." 
+        subtitle="Reconciling payment ledgers and hospital billing records"
+        className="my-12 min-h-[340px]"
+      />
     );
   }
 
@@ -139,7 +143,7 @@ export function BillingPage() {
             <Wallet size={20} />
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold">MediCare Plus+</span>
+            <span className="text-2xl font-bold">Olmera Health Pass</span>
           </div>
           <p className="text-[10px] text-slate-400 mt-2">Valid until Dec 2026</p>
         </div>
@@ -319,7 +323,7 @@ export function BillingPage() {
                       {[
                         { id: 'upi', label: 'UPI (GPay, PhonePe, Paytm)', icon: Smartphone },
                         { id: 'card', label: 'Debit / Credit Card', icon: CreditCard },
-                        { id: 'wallet', label: 'MediCare Wallet', icon: Wallet }
+                        { id: 'wallet', label: 'Olmera Care Wallet', icon: Wallet }
                       ].map((m) => (
                         <button
                           key={m.id}
@@ -347,15 +351,13 @@ export function BillingPage() {
               )}
 
               {paymentStep === 'processing' && (
-                <div className="py-12 flex flex-col items-center justify-center gap-6 animate-fadeIn text-center">
-                  <div className="relative">
-                    <div className="w-20 h-20 border-4 border-slate-100 dark:border-slate-800 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-[#1E88E5] border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-black text-slate-900 dark:text-white mb-2">Processing Transaction</h4>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Encrypting payment tokens...</p>
-                  </div>
+                <div className="py-8 animate-fadeIn">
+                  <MedicareWaveLoader 
+                    variant="card" 
+                    text="Processing Secure Healthcare Transaction" 
+                    subtitle="Encrypting payment tokens and reconciling hospital ledger..."
+                    className="border-none bg-transparent shadow-none"
+                  />
                 </div>
               )}
 

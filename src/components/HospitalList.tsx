@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import { Building2, ChevronRight, Search, MapPin, Star, Activity, Phone, Mail, Users } from 'lucide-react';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Hospital {
   id: string;
@@ -14,11 +15,75 @@ interface Hospital {
   image_url: string;
 }
 
+const FALLBACK_HOSPITALS: Hospital[] = [
+  {
+    id: 'hosp-1',
+    name: 'Olmera Center for Health',
+    address: 'Main Road, Near RTC Complex, Rajam',
+    city: 'Rajam',
+    phone: '+91 94401 23456',
+    email: 'contact@rajam.olmera.health',
+    description: 'Premier tertiary regional care center serving Rajam and surrounding regions with 24/7 trauma & clinical care.',
+    image_url: 'https://images.unsplash.com/photo-1587350859728-117622bb45ff?auto=format&fit=crop&q=80&w=600'
+  },
+  {
+    id: 'hosp-2',
+    name: 'Olmera Apex Medical Institute',
+    address: 'Plot 12, Health City, Arilova, Visakhapatnam',
+    city: 'Visakhapatnam',
+    phone: '+91 94402 34567',
+    email: 'info@vizag.olmera.health',
+    description: 'State-of-the-art 350-bed tertiary care center with Level-1 Trauma, robotic surgery, and advanced catheterization labs.',
+    image_url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=600'
+  },
+  {
+    id: 'hosp-3',
+    name: 'Medicover Hospitals - Srikakulam',
+    address: 'Day & Night Junction, GT Road, Srikakulam',
+    city: 'Srikakulam',
+    phone: '+91 8942 222333',
+    email: 'info@medicover-srikakulam.in',
+    description: 'Comprehensive multi-specialty hospital with modern ICU, dialysis center, and round-the-clock emergency care.',
+    image_url: 'https://images.unsplash.com/photo-1586773860383-dab5f3bc1f4b?auto=format&fit=crop&q=80&w=600'
+  },
+  {
+    id: 'hosp-4',
+    name: 'Apollo Hospitals Vizag',
+    address: 'Waltair Main Road, Ram Nagar, Visakhapatnam',
+    city: 'Visakhapatnam',
+    phone: '+91 891 2727272',
+    email: 'info@apollo-vizag.in',
+    description: 'NABH and NABL accredited hospital offering super-specialty services in oncology, neurosciences, and cardiac care.',
+    image_url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=80&w=600'
+  },
+  {
+    id: 'hosp-5',
+    name: 'Queens NRI Hospital',
+    address: 'Opp. Old Bus Stand, Srikakulam',
+    city: 'Srikakulam',
+    phone: '+91 8942 245678',
+    email: 'info@queensnri.in',
+    description: 'Trusted regional hospital offering advanced surgical, gynecological, and pediatric inpatient services.',
+    image_url: 'https://images.unsplash.com/photo-1512678080530-56978a1d78a4?auto=format&fit=crop&q=80&w=600'
+  },
+  {
+    id: 'hosp-6',
+    name: 'Medicover Woman & Child Hospital',
+    address: 'Venkojipalem, MVP Colony, Visakhapatnam',
+    city: 'Visakhapatnam',
+    phone: '+91 891 3334444',
+    email: 'info@medicover-womenchild.in',
+    description: 'Dedicated center of excellence for high-risk obstetrics, neonatology, pediatric surgery, and maternal health.',
+    image_url: 'https://images.unsplash.com/photo-1606041008023-472dfb5e530f?auto=format&fit=crop&q=80&w=600'
+  }
+];
+
 interface HospitalListProps {
   onSelectHospital: (hospitalId: string) => void;
+  onBack?: () => void;
 }
 
-export function HospitalList({ onSelectHospital }: HospitalListProps) {
+export function HospitalList({ onSelectHospital, onBack }: HospitalListProps) {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,10 +99,10 @@ export function HospitalList({ onSelectHospital }: HospitalListProps) {
       const querySnapshot = await getDocs(q);
       const hospitalsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hospital));
 
-      setHospitals(hospitalsData);
+      setHospitals(hospitalsData.length > 0 ? hospitalsData : FALLBACK_HOSPITALS);
     } catch (error) {
       console.error('Error loading hospitals:', error);
-      setHospitals([]);
+      setHospitals(FALLBACK_HOSPITALS);
     } finally {
       setLoading(false);
     }
@@ -54,14 +119,25 @@ export function HospitalList({ onSelectHospital }: HospitalListProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Connecting Hospital Network..." 
+        subtitle="Locating accredited medical facilities and live bed status"
+        className="my-12 min-h-[340px]"
+      />
     );
   }
 
   return (
-    <div className="animate-fadeIn space-y-8">
+    <div className="animate-fadeIn space-y-8 max-w-7xl mx-auto py-4">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+        >
+          ← Back to Homepage
+        </button>
+      )}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex-1 max-w-2xl">
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Find Healthcare</h2>

@@ -8,6 +8,7 @@ import {
   FileText, Download, Trash2, Info
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface PrescriptionHistory {
   updated_at: string;
@@ -182,10 +183,12 @@ export function PrescriptionsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Synchronizing Pharmacy Records...</p>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Synchronizing Pharmacy & Medication Records..." 
+        subtitle="Verifying prescription validity, dosage timings, and dispensary stock"
+        className="my-12 min-h-[360px]"
+      />
     );
   }
 

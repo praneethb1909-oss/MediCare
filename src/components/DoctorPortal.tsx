@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Chat } from './Chat';
 import { MedicalBackground } from './MedicalBackground';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Appointment {
   id: string;
@@ -211,10 +212,12 @@ export function DoctorPortal() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Synchronizing Workstation...</p>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Synchronizing Clinical Workstation..." 
+        subtitle="Connecting patient records, appointment schedules, and telemedicine queues"
+        className="my-12 min-h-[380px]"
+      />
     );
   }
 
@@ -249,7 +252,7 @@ export function DoctorPortal() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
         <div>
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
-            Welcome back, <span className="text-blue-600">Dr. {doctorInfo?.name?.split(' ').pop() || 'Practitioner'}</span>
+            Welcome back, <span className="text-[var(--color-primary)]">Dr. {doctorInfo?.name?.replace(/^Dr\.\s*/i, '')?.split(' ').pop() || user?.displayName?.replace(/^Dr\.\s*/i, '') || user?.email?.split('@')[0] || 'Practitioner'}</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium max-w-lg">Your clinical workstation is optimized and ready for today's sessions.</p>
         </div>

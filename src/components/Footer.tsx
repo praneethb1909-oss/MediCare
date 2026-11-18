@@ -1,5 +1,6 @@
 import React from 'react';
-import { Activity, Mail, Phone, MapPin, Calendar, FileText, Video, Pill, Receipt, Info, Stethoscope } from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, FileText, Video, Pill, Receipt, Info, Users } from 'lucide-react';
+import { OlmeraWordmark } from './brand/OlmeraWordmark';
 
 interface FooterProps {
   setView: (view: any) => void;
@@ -7,48 +8,50 @@ interface FooterProps {
 
 export function Footer({ setView }: FooterProps) {
   const quickLinks = [
-    { label: 'Book Appointment', icon: Calendar, view: 'hospitals' },
-    { label: 'Medical Reports', icon: FileText, view: 'patient-medical-reports' },
-    { label: 'Telemedicine', icon: Video, view: 'telemedicine' },
+    { label: 'Consultations', icon: Calendar, view: 'hospitals' },
+    { label: 'Diagnostic Reports', icon: FileText, view: 'patient-medical-reports' },
+    { label: 'Telehealth', icon: Video, view: 'telemedicine' },
     { label: 'Prescriptions', icon: Pill, view: 'patient-prescriptions' },
-    { label: 'Billing & Payments', icon: Receipt, view: 'patient-billing' },
-    { label: 'Find a Doctor', icon: Stethoscope, view: 'patient-find-doctor' },
+    { label: 'Billing & Records', icon: Receipt, view: 'patient-billing' },
+    { label: 'Find a Specialist', icon: Users, view: 'patient-find-doctor' },
   ];
 
   const pageLinks = [
-    { label: 'About Us', view: 'about-us' },
+    { label: 'About Olmera', view: 'about-us' },
     { label: 'Services', view: 'services' },
-    { label: 'Contact Us', view: 'contact-us' },
+    { label: 'Contact', view: 'contact-us' },
   ];
 
   return (
-    <footer className="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
+    <footer className="mt-auto border-t border-[var(--color-line)] bg-[var(--color-surface)] text-[var(--color-ink)]">
+      <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-4 md:col-span-1">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
-                <Activity className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-black text-xl text-slate-900 dark:text-white tracking-tight">MediCare</span>
+              <OlmeraWordmark className="h-7 w-auto" />
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-              A hospital management platform connecting patients, doctors, and administrators across Rajam, Vizag, and Srikakulam, Andhra Pradesh.
+            <p className="text-xs font-semibold text-[var(--color-accent)] uppercase tracking-wider">
+              Care, quietly connected.
+            </p>
+            <p className="text-xs text-[var(--color-muted)] leading-relaxed font-ui">
+              A refined healthcare platform connecting patients, specialists, and clinical diagnostics across Rajam, Vizag, and Srikakulam.
             </p>
           </div>
 
           {/* Quick Links */}
           <div className="space-y-3">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quick Access</h4>
+            <h4 className="text-[11px] font-semibold text-[var(--color-muted)] uppercase tracking-widest font-ui">
+              Quick Access
+            </h4>
             <ul className="space-y-2">
               {quickLinks.map((link, i) => (
                 <li key={i}>
                   <button
                     onClick={() => setView(link.view)}
-                    className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-2"
+                    className="text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)] dark:hover:text-white transition-colors font-ui flex items-center gap-2"
                   >
-                    <link.icon size={14} className="text-slate-300 dark:text-slate-600" />
+                    <link.icon size={13} className="text-[var(--color-line)]" />
                     {link.label}
                   </button>
                 </li>
@@ -58,15 +61,17 @@ export function Footer({ setView }: FooterProps) {
 
           {/* Pages */}
           <div className="space-y-3">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Information</h4>
+            <h4 className="text-[11px] font-semibold text-[var(--color-muted)] uppercase tracking-widest font-ui">
+              Platform
+            </h4>
             <ul className="space-y-2">
               {pageLinks.map((link, i) => (
                 <li key={i}>
                   <button
                     onClick={() => setView(link.view)}
-                    className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-2"
+                    className="text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)] dark:hover:text-white transition-colors font-ui flex items-center gap-2"
                   >
-                    <Info size={14} className="text-slate-300 dark:text-slate-600" />
+                    <Info size={13} className="text-[var(--color-line)]" />
                     {link.label}
                   </button>
                 </li>
@@ -76,35 +81,35 @@ export function Footer({ setView }: FooterProps) {
 
           {/* Contact */}
           <div className="space-y-3">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</h4>
-            <ul className="space-y-3">
-              <li>
-                <a href="mailto:praneethb1909@gmail.com" className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-2">
-                  <Mail size={14} className="text-slate-300 dark:text-slate-600" />
-                  praneethb1909@gmail.com
-                </a>
+            <h4 className="text-[11px] font-semibold text-[var(--color-muted)] uppercase tracking-widest font-ui">
+              Concierge Care
+            </h4>
+            <ul className="space-y-2.5 text-xs text-[var(--color-muted)] font-ui">
+              <li className="flex items-center gap-2">
+                <Mail size={13} className="text-[var(--color-primary)] flex-shrink-0" />
+                <span className="truncate">care@olmera.health</span>
               </li>
-              <li>
-                <a href="tel:+917032130919" className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-2">
-                  <Phone size={14} className="text-slate-300 dark:text-slate-600" />
-                  +91 70321 30919
-                </a>
+              <li className="flex items-center gap-2">
+                <Phone size={13} className="text-[var(--color-primary)] flex-shrink-0" />
+                <span>+91 70321 30919</span>
               </li>
-              <li className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">
-                <MapPin size={14} className="text-slate-300 dark:text-slate-600" />
-                Rajam, Andhra Pradesh, IN
+              <li className="flex items-start gap-2">
+                <MapPin size={13} className="text-[var(--color-primary)] flex-shrink-0 mt-0.5" />
+                <span>Rajam, Andhra Pradesh, India</span>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-400 font-medium">
-            {new Date().getFullYear()} MediCare. Built for better healthcare access in Andhra Pradesh.
-          </p>
-          <p className="text-xs text-slate-400 font-medium">
-            For emergencies, call <span className="font-bold text-red-500">108</span> or use the in-app SOS button.
-          </p>
+        <div className="mt-8 pt-6 border-t border-[var(--color-line)] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[var(--color-muted)] font-ui">
+          <p>© {new Date().getFullYear()} Olmera Health. All rights reserved. Care, quietly connected.</p>
+          <div className="flex items-center gap-4">
+            <span className="hover:text-[var(--color-primary)] cursor-pointer">Privacy Charter</span>
+            <span>•</span>
+            <span className="hover:text-[var(--color-primary)] cursor-pointer">Clinical Standards</span>
+            <span>•</span>
+            <span className="hover:text-[var(--color-primary)] cursor-pointer">Security</span>
+          </div>
         </div>
       </div>
     </footer>

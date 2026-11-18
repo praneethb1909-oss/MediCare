@@ -3,6 +3,7 @@ import { Bell, Calendar, Receipt, FileText, AlertCircle, Info, CheckCircle2, Tra
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 interface Notification {
   id: string;
@@ -91,9 +92,12 @@ export function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
+      <MedicareWaveLoader 
+        variant="card" 
+        text="Loading Clinical Notifications..." 
+        subtitle="Retrieving verified broadcast alerts, consultation updates, and reminders"
+        className="my-12 min-h-[320px]"
+      />
     );
   }
 
