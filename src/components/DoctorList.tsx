@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
-import { User, Mail, Phone, Calendar, ArrowLeft, ChevronRight } from 'lucide-react';
+import { User, Mail, Phone, Calendar, ArrowLeft, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { maskEmail, maskPhone } from '../utils/masking';
 
 interface Doctor {
   id: string;
@@ -28,7 +29,7 @@ export function DoctorList({ departmentId, hospitalId, onSelectDoctor, onBack }:
   const [loading, setLoading] = useState(true);
   const [departmentName, setDepartmentName] = useState('');
 
-  const { role } = useAuth();
+  const { user, role } = useAuth();
 
   const loadDoctors = useCallback(async () => {
     try {
@@ -40,7 +41,7 @@ export function DoctorList({ departmentId, hospitalId, onSelectDoctor, onBack }:
       }
 
       // First attempt: filter by both department and hospital (no orderBy to avoid index requirements)
-      let primaryQuery = hospitalId
+      const primaryQuery = hospitalId
         ? query(
             collection(db, 'doctors'),
             where('department_id', '==', departmentId),
@@ -51,7 +52,7 @@ export function DoctorList({ departmentId, hospitalId, onSelectDoctor, onBack }:
             where('department_id', '==', departmentId)
           );
 
-      let querySnapshot = await getDocs(primaryQuery);
+      const querySnapshot = await getDocs(primaryQuery);
       let doctorsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doctor));
 
       // Fallback: if filtering by hospital yields no result, broaden to department-only
@@ -138,13 +139,17 @@ export function DoctorList({ departmentId, hospitalId, onSelectDoctor, onBack }:
                   <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
                     <Mail size={14} />
                   </div>
-                  <span className="truncate">{doctor.email || 'N/A'}</span>
+                  <span className="truncate">
+                    {user ? maskEmail(doctor.email) : 'Sign in to contact'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-500">
                   <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-                    <Phone size={14} />
+                    {user ? <Phone size={14} /> : <Lock size={14} />}
                   </div>
-                  <span>{doctor.phone || 'N/A'}</span>
+                  <span>
+                    {user ? maskPhone(doctor.phone) : 'Sign in for phone'}
+                  </span>
                 </div>
                 <div className="col-span-2 flex items-center gap-3 text-sm text-slate-500">
                   <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">

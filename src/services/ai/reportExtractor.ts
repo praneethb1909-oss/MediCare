@@ -5,6 +5,8 @@
  * and maintains longitudinal historical biomarker comparisons.
  */
 
+import { SmartLLMRouter } from './routing';
+
 export interface LabBiomarker {
   testName: string;
   category: 'Metabolic' | 'Lipid' | 'Hematology' | 'Renal' | 'Thyroid' | 'Liver';
@@ -236,3 +238,34 @@ export function extractReportBiomarkers(reportText: string, reportTitle: string 
 }
 
 export const extractBiomarkers = extractReportBiomarkers;
+
+/**
+ * Generates in-depth clinical narrative using NVIDIA NIM Multi-Model Router
+ */
+export async function analyzeReportWithLLM(
+  summary: ExtractedReportSummary,
+  language: 'en' | 'te' | 'hi' = 'en'
+): Promise<string> {
+  try {
+    const router = SmartLLMRouter.getInstance();
+    const biomarkersList = summary.biomarkers.map(b => `${b.testName}: ${b.value} ${b.unit} (Ref: ${b.referenceRange.display}, Status: ${b.status})`).join('\n');
+    const prompt = `Analyze this clinical diagnostic report titled "${summary.reportTitle}":\n\nBiomarkers:\n${biomarkersList}\n\nCritical Alerts:\n${summary.criticalAlerts.join('\n')}\n\nProvide an empathetic, clinically rigorous explanation in ${language === 'te' ? 'Telugu (తెలుగు)' : language === 'hi' ? 'Hindi (हिंदी)' : 'English'}. Include:
+1. Overall organ system health summary
+2. Explanation of out-of-range biomarkers
+3. Actionable lifestyle and nutritional guidance
+4. Recommendations on medical specialty follow-up. Add clinical safety notice.`;
+
+    const res = await router.completePrompt({
+      prompt,
+      systemInstruction: 'You are an Olmera AI Clinical Pathologist. Explain laboratory biomarkers clearly and accurately.',
+      temperature: 0.5,
+      maxTokens: 1024,
+      taskType: 'clinical_summary'
+    });
+
+    return res.content;
+  } catch (err) {
+    console.warn('AI report narrative generation fallback:', err);
+    return summary.overallSummary[language] || summary.overallSummary.en;
+  }
+}

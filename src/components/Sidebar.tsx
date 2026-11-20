@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, Users, Building2, Settings, ChevronLeft, ChevronRight,
   LogOut, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText,
@@ -20,14 +20,14 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: SidebarProps) {
   const { signOut } = useAuth();
-  const [isDarkMode, setIsDarkMode] = React.useState(() => {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.classList.contains('dark');
     }
     return false;
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof document !== 'undefined') {
       setIsDarkMode(document.documentElement.classList.contains('dark'));
     }
@@ -37,9 +37,11 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
     const nextDark = !document.documentElement.classList.contains('dark');
     if (nextDark) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
       localStorage.setItem('olmera_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
       localStorage.setItem('olmera_theme', 'light');
     }
     setIsDarkMode(nextDark);

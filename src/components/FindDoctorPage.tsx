@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Calendar, Clock, ChevronRight, User, Filter, Building2, Phone, Mail, IndianRupee, Award, Briefcase } from 'lucide-react';
+import { Search, Star, Calendar, Clock, ChevronRight, User, Filter, Building2, IndianRupee, Award, Briefcase } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
@@ -21,105 +21,6 @@ interface Doctor {
   education?: string;
 }
 
-const FALLBACK_DOCTORS: Doctor[] = [
-  {
-    id: 'doc-1',
-    name: 'Dr. Ramesh Babu',
-    specialization: 'Cardiologist',
-    hospital_id: 'hosp-1',
-    department_id: 'dept-1',
-    experience: '18 Years',
-    rating: 4.9,
-    reviews: 142,
-    fee: 1000,
-    available_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    available_hours_start: '09:00:00',
-    available_hours_end: '17:00:00',
-    education: 'MBBS, MD (Medicine), DM (Cardiology) - AIIMS',
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'doc-2',
-    name: 'Dr. Lakshmi Prasanna',
-    specialization: 'Neurologist',
-    hospital_id: 'hosp-2',
-    department_id: 'dept-2',
-    experience: '14 Years',
-    rating: 4.8,
-    reviews: 98,
-    fee: 1200,
-    available_days: ['Mon', 'Wed', 'Fri', 'Sat'],
-    available_hours_start: '10:00:00',
-    available_hours_end: '18:00:00',
-    education: 'MBBS, DM (Neurology), Fellowship in Stroke Care (UK)',
-    image: 'https://images.unsplash.com/photo-1594824813583-49035f5ee49b?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'doc-3',
-    name: 'Dr. A Suresh',
-    specialization: 'Orthopedic Surgeon',
-    hospital_id: 'hosp-5',
-    department_id: 'dept-4',
-    experience: '16 Years',
-    rating: 4.9,
-    reviews: 210,
-    fee: 1000,
-    available_days: ['Mon', 'Tue', 'Thu', 'Fri'],
-    available_hours_start: '09:00:00',
-    available_hours_end: '16:00:00',
-    education: 'MBBS, MS (Ortho), MCh (Joint Replacement)',
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'doc-4',
-    name: 'Dr. K. Sravani',
-    specialization: 'Gynecologist & Obstetrician',
-    hospital_id: 'hosp-7',
-    department_id: 'dept-14',
-    experience: '12 Years',
-    rating: 4.9,
-    reviews: 175,
-    fee: 800,
-    available_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    available_hours_start: '10:00:00',
-    available_hours_end: '19:00:00',
-    education: 'MBBS, DGO, DNB (Obstetrics & Gynecology)',
-    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'doc-5',
-    name: 'Dr. M. Venkat Rao',
-    specialization: 'Pediatrician',
-    hospital_id: 'hosp-3',
-    department_id: 'dept-3',
-    experience: '15 Years',
-    rating: 4.7,
-    reviews: 130,
-    fee: 700,
-    available_days: ['Mon', 'Tue', 'Wed', 'Fri', 'Sat'],
-    available_hours_start: '09:00:00',
-    available_hours_end: '15:00:00',
-    education: 'MBBS, MD (Pediatrics), Fellowship in Neonatology',
-    image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'doc-6',
-    name: 'Dr. P. Rakesh',
-    specialization: 'General Physician',
-    hospital_id: 'hosp-1',
-    department_id: 'dept-5',
-    experience: '11 Years',
-    rating: 4.8,
-    reviews: 115,
-    fee: 600,
-    available_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    available_hours_start: '08:30:00',
-    available_hours_end: '16:30:00',
-    education: 'MBBS, MD (General Medicine)',
-    image: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&q=80&w=400'
-  }
-];
-
 interface FindDoctorPageProps {
   onBack?: () => void;
   onSelectDoctor?: (doctorId: string) => void;
@@ -140,10 +41,10 @@ export function FindDoctorPage({ onBack, onSelectDoctor }: FindDoctorPageProps =
       const q = query(collection(db, 'doctors'), orderBy('name'));
       const querySnapshot = await getDocs(q);
       const doctorsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doctor));
-      setDoctors(doctorsData.length > 0 ? doctorsData : FALLBACK_DOCTORS);
+      setDoctors(doctorsData);
     } catch (error) {
       console.error('Error loading doctors:', error);
-      setDoctors(FALLBACK_DOCTORS);
+      setDoctors([]);
     } finally {
       setLoading(false);
     }

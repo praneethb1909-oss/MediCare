@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Bot, Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, 
-  Sparkles, Globe, Shield, Phone, ChevronRight, User, CheckCircle2 
+  Sparkles, Globe, Shield, Phone, ChevronRight, User, CheckCircle2, ShieldAlert 
 } from 'lucide-react';
 import { processAssistantQuery, AssistantMessage, AssistantLanguage } from '../services/ai/assistantService';
 import { useAuth } from '../contexts/AuthContext';
@@ -213,14 +213,18 @@ export function OlmeraAIAssistant({ isOpen = true, onClose, isFloating = false }
                     href="tel:108"
                     className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
                   >
-                    <Phone size={14} /> Call 108 Emergency Ambulance
+                    <Phone size={14} /> Call 108 Emergency Ambulance (Toll-Free)
                   </a>
-                  <a
-                    href="tel:7032130919"
+                  <button
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && (window as any).setView) {
+                        (window as any).setView('emergency');
+                      }
+                    }}
                     className="w-full py-2 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
                   >
-                    Olmera Urgent Helpline: 7032130919
-                  </a>
+                    <ShieldAlert size={14} /> Open Clinical Emergency Triage
+                  </button>
                 </div>
               )}
 

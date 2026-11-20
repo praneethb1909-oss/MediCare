@@ -22,9 +22,10 @@ type AuthStep = 'initial' | 'otp' | 'forgot-password';
 interface AuthProps {
   onBack?: () => void;
   initialRole?: 'patient' | 'doctor' | 'admin';
+  onSwitchToHospitalAdmin?: () => void;
 }
 
-export function Auth({ onBack, initialRole = 'patient' }: AuthProps) {
+export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [authStep, setAuthStep] = useState<AuthStep>('initial');
   const [email, setEmail] = useState('');
@@ -150,18 +151,6 @@ export function Auth({ onBack, initialRole = 'patient' }: AuthProps) {
     }
   };
 
-  const handleQuickLogin = (roleId: 'admin' | 'doctor' | 'patient', e: string, p: string) => {
-    if (!isFirebaseConfigured) {
-      loginAsDemo(roleId);
-      return;
-    }
-    setEmail(e);
-    setPassword(p);
-    setIsLogin(true);
-    generateRandomOtp();
-    setAuthStep('otp');
-  };
-
   const renderAuthStep = () => {
     switch (authStep) {
       case 'otp':
@@ -178,9 +167,9 @@ export function Auth({ onBack, initialRole = 'patient' }: AuthProps) {
               <button
                 type="button"
                 onClick={() => setOtp(generatedOtp.split(''))}
-                className="text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-mist)]/50 px-3 py-1 rounded-full inline-block mt-1 hover:bg-[var(--color-mist)] transition-colors"
+                className="text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-mist)]/50 px-3 py-1 rounded-full inline-block mt-1 hover:bg-[var(--color-mist)] transition-colors font-ui"
               >
-                Auto-fill demo code: {generatedOtp}
+                Verification Passcode: {generatedOtp}
               </button>
             </div>
 
@@ -300,7 +289,13 @@ export function Auth({ onBack, initialRole = 'patient' }: AuthProps) {
                       <button
                         key={r.id}
                         type="button"
-                        onClick={() => setRole(r.id)}
+                        onClick={() => {
+                          if (r.id === 'admin' && onSwitchToHospitalAdmin) {
+                            onSwitchToHospitalAdmin();
+                          } else {
+                            setRole(r.id);
+                          }
+                        }}
                         className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-ui transition-all ${
                           role === r.id 
                             ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm' 
@@ -324,7 +319,7 @@ export function Auth({ onBack, initialRole = 'patient' }: AuthProps) {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="input-field pl-10"
-                      placeholder="Bharath Burada"
+                      placeholder="Enter your full name"
                       required
                     />
                   </div>
@@ -511,31 +506,6 @@ export function Auth({ onBack, initialRole = 'patient' }: AuthProps) {
                     <>Already registered? <span className="font-semibold text-[var(--color-primary)] hover:underline">Sign in</span></>
                   )}
                 </button>
-              </div>
-            )}
-
-            {/* Quick Demo Access Station */}
-            {isLogin && authStep === 'initial' && (
-              <div className="mt-8 pt-6 border-t border-[var(--color-line)]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)] text-center mb-3 font-ui">
-                  Instant Demo Access
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'patient', label: 'Patient', email: 'patient@olmera.health', pass: 'Patient@123' },
-                    { id: 'doctor', label: 'Specialist', email: 'doctor@olmera.health', pass: 'Doctor@123' },
-                    { id: 'admin', label: 'Admin', email: 'admin@olmera.health', pass: 'Admin@123' },
-                  ].map((btn) => (
-                    <button
-                      key={btn.id}
-                      type="button"
-                      onClick={() => handleQuickLogin(btn.id as any, btn.email, btn.pass)}
-                      className="py-2.5 px-2 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-line)] text-xs font-semibold text-[var(--color-ink)] hover:bg-[var(--color-mist)]/50 transition-all text-center font-ui"
-                    >
-                      {btn.label}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
           </div>

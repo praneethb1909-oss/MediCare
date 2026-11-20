@@ -25,7 +25,7 @@
     "@capacitor/status-bar": "^8.0.1",
     "@supabase/supabase-js": "^2.98.0",
     "dotenv": "^17.3.1",
-    "firebase": "^12.10.0",
+    "firebase": "^12.19.0",
     "firebase-admin": "^13.7.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.344.0",

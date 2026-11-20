@@ -78,26 +78,50 @@ export function ProfilePage() {
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        const dataUrl = reader.result as string;
+        const rawDataUrl = reader.result as string;
 
-        // Immediately update state and localStorage
-        setProfileData((prev: any) => ({ ...prev, photo_url: dataUrl }));
-        try {
-          localStorage.setItem(`olmera_avatar_${user.uid}`, dataUrl);
-        } catch (e) {}
+        // Resize photo to 256x256 to guarantee fast loading and avoid localStorage/Firestore quota limits
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const size = 256;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const minDim = Math.min(img.width, img.height);
+            const sx = (img.width - minDim) / 2;
+            const sy = (img.height - minDim) / 2;
+            ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+          }
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
-        // Persist to Firestore
-        try {
-          const collectionName = role === 'doctor' ? 'doctors' : 'patients';
-          await updateDoc(doc(db, collectionName, user.uid), {
-            photo_url: dataUrl,
-            updated_at: new Date().toISOString()
-          });
-        } catch (dbErr) {
-          console.warn('Firestore avatar update warning:', dbErr);
-        }
+          // Immediately update state and localStorage
+          setProfileData((prev: any) => ({ ...prev, photo_url: compressedDataUrl }));
+          try {
+            localStorage.setItem(`olmera_avatar_${user.uid}`, compressedDataUrl);
+          } catch (e) {
+            console.warn('Local avatar storage warning:', e);
+          }
 
-        setUploadingPhoto(false);
+          // Persist to Firestore
+          try {
+            const collectionName = role === 'doctor' ? 'doctors' : 'patients';
+            await updateDoc(doc(db, collectionName, user.uid), {
+              photo_url: compressedDataUrl,
+              updated_at: new Date().toISOString()
+            });
+          } catch (dbErr) {
+            console.warn('Firestore avatar update warning:', dbErr);
+          }
+
+          setUploadingPhoto(false);
+        };
+        img.onerror = () => {
+          setProfileData((prev: any) => ({ ...prev, photo_url: rawDataUrl }));
+          setUploadingPhoto(false);
+        };
+        img.src = rawDataUrl;
       };
 
       reader.onerror = () => {
@@ -164,7 +188,7 @@ export function ProfilePage() {
             <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-[2rem] flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xl shadow-blue-200 dark:shadow-none overflow-hidden relative border-2 border-white dark:border-slate-800">
               {uploadingPhoto ? (
                 <div className="flex flex-col items-center justify-center p-2">
-                  <div className="w-7 h-7 border-3 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
+                  <MedicareWaveLoader variant="inline" text="" />
                 </div>
               ) : (profileData?.photo_url || user?.photoURL) ? (
                 <img 

@@ -4,10 +4,11 @@ import {
   Upload, Camera, RefreshCw, Plus, Shield, Search, ArrowRight, User 
 } from 'lucide-react';
 import { 
-  parsePrescriptionText, checkDrugInteractions, 
+  parsePrescriptionText, parsePrescriptionWithLLM, checkDrugInteractions, 
   ParsedMedication, DrugInteraction 
 } from '../services/ai/prescriptionParser';
 import { useAuth } from '../contexts/AuthContext';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 
 export function SmartMedicationSchedule() {
   const { user } = useAuth();
@@ -45,15 +46,10 @@ export function SmartMedicationSchedule() {
   };
 
   const handleScanPrescription = async () => {
+    const textToParse = rawPrescriptionInput.trim();
+    if (!textToParse) return;
     setScanning(true);
-    // Simulate OCR & AI parsing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const extracted = parsePrescriptionText(rawPrescriptionInput || `
-Rx:
-1. Atorvastatin 20mg - 0-0-1 Night after dinner
-2. Aspirin 75mg - 1-0-0 Morning after breakfast
-3. Pantoprazole 40mg - 1-0-0 Morning before food
-    `);
+    const extracted = await parsePrescriptionWithLLM(textToParse);
     setMedications(prev => [...prev, ...extracted]);
     setScanning(false);
     setShowScannerModal(false);
@@ -282,12 +278,18 @@ Rx:
               </button>
               <button
                 type="button"
-                disabled={scanning}
+                disabled={scanning || !rawPrescriptionInput.trim()}
                 onClick={handleScanPrescription}
-                className="btn-primary flex-[2] py-2.5 text-xs rounded-xl flex items-center justify-center gap-2"
+                className="btn-primary flex-[2] py-2.5 text-xs rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {scanning ? <RefreshCw size={14} className="animate-spin" /> : <Camera size={14} />}
-                {scanning ? 'Extracting Schedule...' : 'Analyze & Add to Schedule'}
+                {scanning ? (
+                  <MedicareWaveLoader variant="button" text="Extracting Clinical Schedule..." />
+                ) : (
+                  <>
+                    <Camera size={14} />
+                    <span>Analyze & Add to Schedule</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

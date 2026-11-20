@@ -109,8 +109,8 @@ export async function processAssistantQuery(
       emergencyData: emergencyCheck,
       suggestedActions: [
         'Call 108 Emergency Ambulance',
-        'Dispatch GPS Paramedic Unit',
-        'Contact 24/7 Careline (7032130919)'
+        'Request Rapid Clinical Emergency Triage',
+        'Access Patient Emergency SOS'
       ]
     };
   }
@@ -149,6 +149,8 @@ export async function processAssistantQuery(
     const routerResult = await router.completePrompt({
       prompt: routerPrompt,
       systemInstruction: 'You are Olmera Health Companion, a clinical triage and patient support assistant. You prioritize patient safety, explain conditions calmly, and never fabricate diagnoses.',
+      temperature: 0.5,
+      maxTokens: 1024,
       taskType: 'chat'
     });
 

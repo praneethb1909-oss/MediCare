@@ -30,7 +30,7 @@ const services = [
   {
     icon: Ambulance,
     title: 'Emergency Dispatch',
-    desc: 'One-tap SOS to dispatch an ambulance with GPS tracking, or book an emergency consultation with an on-call specialist. Average response time under 12 minutes in serviced areas.',
+    desc: 'One-tap SOS to coordinate emergency paramedic dispatch, or book an urgent consultation with an on-call specialist. Average response time under 12 minutes in serviced areas.',
   },
   {
     icon: Microscope,

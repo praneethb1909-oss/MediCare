@@ -5,6 +5,8 @@
  * All clinical documentation must be reviewed and approved by the doctor.
  */
 
+import { SmartLLMRouter } from './routing';
+
 export interface SourceCitation {
   recordId: string;
   recordTitle: string;
@@ -72,94 +74,36 @@ export function generatePatientPreConsultSummary(
   reports: any[] = [],
   vitals: any = null
 ): PatientHistorySummary {
+  const patientId: string = patientData?.id || '';
   const patientName = patientData?.full_name || 'Patient';
-  const uhid = `OL-${(patientData?.id || '8841').slice(0, 8).toUpperCase()}`;
+  const uhid = patientId ? `OL-${patientId.slice(0, 8).toUpperCase()}` : '';
 
   return {
-    patientId: patientData?.id || 'patient-id',
+    patientId,
     patientName: patientName,
-    age: patientData?.age || 42,
-    gender: patientData?.gender || 'Male',
+    age: patientData?.age ?? 0,
+    gender: patientData?.gender || 'Not specified',
     uhid: uhid,
     generatedAt: new Date().toISOString(),
-    primaryConditions: patientData?.conditions || [
-      'Type 2 Diabetes Mellitus (managed)',
-      'Primary Essential Hypertension (mild)'
-    ],
-    allergies: patientData?.allergies || ['Sulfa drugs', 'Penicillin (mild rash)'],
-    activeMedications: prescriptions.length > 0
-      ? prescriptions.map(p => ({
-          name: p.medications || 'Metformin',
-          dosage: p.dosage || '500 mg BD',
-          adherencePct: 92,
-          prescribedBy: p.doctor_name || 'Dr. Suresh A'
-        }))
-      : [
-          { name: 'Metformin HCl', dosage: '500 mg (1-0-1)', adherencePct: 94, prescribedBy: 'Dr. Suresh A' },
-          { name: 'Telmisartan', dosage: '40 mg (1-0-0)', adherencePct: 88, prescribedBy: 'Dr. Ramesh Kumar' }
-        ],
-    recentAbnormalBiomarkers: [
-      {
-        testName: 'Fasting Blood Glucose',
-        value: '128 mg/dL',
-        reference: '70 - 99 mg/dL',
-        status: 'high',
-        citation: {
-          recordId: reports[0]?.id || 'rep-gl-01',
-          recordTitle: reports[0]?.title || 'Complete Metabolic Profile',
-          recordDate: reports[0]?.uploaded_at || '2026-11-10',
-          sourceType: 'lab_report'
-        }
-      },
-      {
-        testName: 'HbA1c',
-        value: '6.8 %',
-        reference: '4.0 - 5.6 %',
-        status: 'high',
-        citation: {
-          recordId: reports[0]?.id || 'rep-gl-01',
-          recordTitle: reports[0]?.title || 'Complete Metabolic Profile',
-          recordDate: reports[0]?.uploaded_at || '2026-11-10',
-          sourceType: 'lab_report'
-        }
-      }
-    ],
+    primaryConditions: patientData?.conditions || [],
+    allergies: patientData?.allergies || [],
+    activeMedications: prescriptions.map(p => ({
+      name: p.medications || '',
+      dosage: p.dosage || '',
+      adherencePct: p.adherence_pct ?? 0,
+      prescribedBy: p.doctor_name || ''
+    })),
+    recentAbnormalBiomarkers: [],
     latestVitals: {
-      bloodPressure: vitals?.blood_pressure || '128/82 mmHg',
-      pulseBpm: vitals?.pulse || 72,
-      bloodGlucose: vitals?.glucose || '118 mg/dL',
-      weightKg: vitals?.weight || 68.5,
+      bloodPressure: vitals?.blood_pressure || '',
+      pulseBpm: vitals?.pulse ?? 0,
+      bloodGlucose: vitals?.glucose || '',
+      weightKg: vitals?.weight ?? 0,
       recordedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     },
-    chronologicalTimeline: [
-      {
-        date: '2026-11-10',
-        event: 'NABL Diagnostic Lab Panel Uploaded',
-        type: 'lab_report',
-        provider: 'Olmera Center for Health (Rajam)',
-        citation: { recordId: 'rep-01', recordTitle: 'Comprehensive Metabolic Panel', recordDate: '2026-11-10', sourceType: 'lab_report' }
-      },
-      {
-        date: '2026-10-15',
-        event: 'Cardiology Review & Telemetry Synchronized',
-        type: 'consultation',
-        provider: 'Dr. Ramesh Kumar (Olmera Apex Hospital)',
-        citation: { recordId: 'apt-02', recordTitle: 'Cardiology Outpatient Consult', recordDate: '2026-10-15', sourceType: 'consultation' as any }
-      },
-      {
-        date: '2026-09-01',
-        event: 'Metformin Prescription Renewed (30-day regimen)',
-        type: 'prescription',
-        provider: 'Dr. Suresh A',
-        citation: { recordId: 'rx-03', recordTitle: 'Endocrinology Prescription', recordDate: '2026-09-01', sourceType: 'prescription' }
-      }
-    ],
-    aiClinicalImpression: 'Patient demonstrates solid compliance (92% medication adherence). Blood pressure is under satisfactory control (128/82). Glycemic parameters reflect moderate elevation (HbA1c 6.8%), suggesting review of dietary carbohydrate distribution and potential dual oral agent evaluation.',
-    suggestedFocusAreas: [
-      'Assess fasting vs postprandial glucose variability',
-      'Review daily physical activity & hydration logs',
-      'Evaluate renal function trend before dosage adjustments'
-    ]
+    chronologicalTimeline: [],
+    aiClinicalImpression: patientData?.ai_clinical_impression || '',
+    suggestedFocusAreas: patientData?.suggested_focus_areas || []
   };
 }
 
@@ -191,15 +135,8 @@ Re: Clinical Referral of ${patientName} (UHID: ${uhid})
 Dear Colleague,
 
 I am referring the above patient for your specialized clinical evaluation and management regarding:
-${clinicalNotes || 'Evaluation of glycemic fluctuations and optimization of cardiovascular risk profile.'}
 
-Patient History & Vitals:
-- Active Conditions: Type 2 Diabetes Mellitus, Essential Hypertension.
-- Current Medications: Metformin 500mg BD, Telmisartan 40mg OD.
-- Known Allergies: Sulfa drugs.
-
-Recent Diagnostics:
-- HbA1c: 6.8% | Serum Creatinine: 0.9 mg/dL | Resting BP: 128/82 mmHg.
+${clinicalNotes || 'Please refer to the attached clinical records for the complete case details.'}
 
 Kindly examine and share your expert recommendations for further therapeutic continuity.
 
@@ -220,7 +157,7 @@ UHID: ${uhid}
 Date of Examination: ${dateStr}
 
 Clinical Observations:
-${clinicalNotes || 'The patient is hemodynamically stable, with clear heart sounds and normal breath sounds. Biometric parameters are within clinically acceptable ambulatory limits.'}
+${clinicalNotes || 'Clinical examination findings to be recorded by the attending physician.'}
 
 Conclusion:
 In my clinical assessment, the individual is medically fit to resume standard occupational and physical duties.
@@ -238,20 +175,19 @@ Patient: ${patientName} | UHID: ${uhid}
 Discharge Date: ${dateStr}
 
 Primary Diagnosis:
-${clinicalNotes || 'Acute ambulatory care and outpatient glycemic stabilization.'}
+${clinicalNotes || 'Refer to the inpatient case sheet for the recorded diagnosis.'}
 
 Medications on Discharge:
-1. Metformin 500mg — 1 tablet twice daily after meals (30 days)
-2. Telmisartan 40mg — 1 tablet once daily morning after breakfast (30 days)
+Refer to the issued discharge prescription for the complete medication regimen.
 
 Lifestyle & Care Instructions:
-- Maintain 2.5L daily hydration.
-- Low sodium, balanced carbohydrate nutritional routine.
-- Daily 30-minute moderate walking.
+- Maintain adequate daily hydration.
+- Follow the nutritional routine advised by your care team.
+- Engage in regular moderate physical activity as tolerated.
 
 Follow-Up Schedule:
-- Return for follow-up clinical review in 4 weeks with updated fasting blood glucose.
-- In case of emergency (chest pain, breathlessness), call 108 or visit nearest hospital immediately.
+- Return for follow-up clinical review as advised by the treating doctor.
+- In case of emergency, contact emergency services or visit the nearest hospital immediately.
 
 Treating Doctor:
 ${doctorName}
@@ -267,7 +203,7 @@ Date: ${dateStr}
 Dear ${patientName},
 
 Please follow these individualized care instructions:
-${clinicalNotes || '1. Take prescribed medications consistently after breakfast and dinner.\n2. Record morning fasting blood glucose twice weekly in your Olmera Health Vault.\n3. Keep hydrated and contact your care team if you experience unexpected dizziness.'}
+${clinicalNotes || 'Follow the prescribed medication schedule and contact your care team with any concerns.'}
 
 Notice: These instructions complement your consultation. For questions, connect with your Care Concierge via your patient portal.`;
       break;
@@ -287,3 +223,47 @@ Notice: These instructions complement your consultation. For questions, connect 
 }
 
 export const generateClinicalDocument = generateClinicalDocumentDraft;
+
+/**
+ * Intelligent Clinical Document Drafting using NVIDIA NIM Multi-Model Router
+ */
+export async function generateClinicalDocumentWithLLM(
+  type: ClinicalDocumentDraft['documentType'],
+  patientName: string,
+  doctorName: string,
+  hospitalName: string,
+  clinicalNotes: string
+): Promise<ClinicalDocumentDraft> {
+  const baseDraft = generateClinicalDocumentDraft(type, patientName, doctorName, hospitalName, clinicalNotes);
+  
+  try {
+    const router = SmartLLMRouter.getInstance();
+    const prompt = `Draft a formal medical ${type.replace(/_/g, ' ')} for:
+Patient: ${patientName}
+Attending Physician: ${doctorName}
+Hospital / Node: ${hospitalName}
+Clinical Case Notes: ${clinicalNotes || 'Ambulatory outpatient evaluation and ongoing therapy.'}
+
+Requirements:
+- Professional medical terminology
+- Clear clinical indications and history
+- Strict patient safety & physician approval footer
+Output only the drafted document content.`;
+
+    const res = await router.completePrompt({
+      prompt,
+      systemInstruction: 'You are an Olmera AI Clinical Documentation Assistant. Generate professional, accredited clinical letters and certificates.',
+      temperature: 0.5,
+      maxTokens: 1024,
+      taskType: 'clinical_summary'
+    });
+
+    if (res.content.trim().length > 50) {
+      baseDraft.content = res.content;
+    }
+  } catch (err) {
+    console.warn('AI document draft generation fallback:', err);
+  }
+
+  return baseDraft;
+}

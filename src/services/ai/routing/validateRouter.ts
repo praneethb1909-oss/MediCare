@@ -64,7 +64,9 @@ export async function runRouterValidationSuite(): Promise<ValidationReport> {
   // ---------------------------------------------------------------------------
   try {
     // Intentionally trip primary key into rate limited status
-    const metrics = router.getMetrics().find(m => m.keyId === 'gemini-flash-primary');
+    const firstTier1 = router.getKeys().find(k => k.priority === 1 && k.enabled);
+    const keyToTrip = firstTier1?.id || 'nvidia-autogen-42';
+    const metrics = router.getMetrics().find(m => m.keyId === keyToTrip);
     if (metrics) {
       metrics.status = 'RATE_LIMITED';
       metrics.cooldownUntil = new Date(Date.now() + 60000).toISOString();
@@ -72,12 +74,12 @@ export async function runRouterValidationSuite(): Promise<ValidationReport> {
 
     // Attempt selection again: router MUST avoid the rate-limited primary key
     const failoverSelection = router.selectKey({ prompt: 'Failover probe' });
-    const avoidedTrip = failoverSelection.key.id !== 'gemini-flash-primary';
+    const avoidedTrip = failoverSelection.key.id !== keyToTrip;
 
     results.push({
       name: 'Automated Rate Limit (429) Failover',
       passed: avoidedTrip,
-      details: `Primary key tripped to RATE_LIMITED. Router automatically failed over to "${failoverSelection.key.id}".`
+      details: `Primary key "${keyToTrip}" tripped to RATE_LIMITED. Router automatically failed over to "${failoverSelection.key.id}".`
     });
 
     // Reset status

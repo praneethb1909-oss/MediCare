@@ -5,6 +5,8 @@
  * not hallucinated by an LLM.
  */
 
+import { SmartLLMRouter } from './routing';
+
 export interface ParsedMedication {
   id: string;
   name: string;
@@ -203,4 +205,62 @@ export function parsePrescriptionText(rawText: string, doctorName: string = 'Dr.
   }
 
   return parsedMeds;
+}
+
+/**
+ * Intelligent Prescription Parsing powered by NVIDIA NIM Multi-Model Router
+ */
+export async function parsePrescriptionWithLLM(
+  rawText: string, 
+  doctorName: string = 'Dr. S. Rao'
+): Promise<ParsedMedication[]> {
+  try {
+    const router = SmartLLMRouter.getInstance();
+    const prompt = `Extract all medications from this prescription:\n\n${rawText}\n\nRespond with a JSON array where each item has:
+- name: string
+- dosage: string (e.g. "500 mg")
+- form: "tablet" | "capsule" | "syrup" | "injection" | "drops" | "ointment"
+- frequency: string (e.g. "Twice daily (1-0-1)")
+- timing: "before_food" | "after_food" | "with_food" | "as_needed"
+- scheduleSlots: ("morning" | "afternoon" | "evening" | "night")[]
+- defaultTimes: string[] (e.g. ["08:00", "20:00"])
+- durationDays: number
+- instructions: string`;
+
+    const res = await router.completePrompt({
+      prompt,
+      systemInstruction: 'You are an Olmera AI Clinical Pharmacist. Extract all medications accurately into valid JSON. Output strictly the raw JSON array without markdown formatting.',
+      temperature: 0.5,
+      maxTokens: 1024,
+      taskType: 'prescription_ocr'
+    });
+
+    const cleaned = res.content.replace(/```json/g, '').replace(/```/g, '').trim();
+    const jsonStart = cleaned.indexOf('[');
+    const jsonEnd = cleaned.lastIndexOf(']');
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      const parsed = JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item, idx) => ({
+          id: `med-ai-${Date.now()}-${idx}`,
+          name: item.name || 'Prescribed Medicine',
+          genericName: item.genericName,
+          dosage: item.dosage || 'As Directed',
+          form: item.form || 'tablet',
+          frequency: item.frequency || 'Once daily',
+          timing: item.timing || 'after_food',
+          scheduleSlots: Array.isArray(item.scheduleSlots) && item.scheduleSlots.length > 0 ? item.scheduleSlots : ['morning'],
+          defaultTimes: Array.isArray(item.defaultTimes) && item.defaultTimes.length > 0 ? item.defaultTimes : ['08:00'],
+          durationDays: Number(item.durationDays) || 30,
+          instructions: item.instructions || 'Take as advised by physician.',
+          prescribingDoctor: doctorName,
+          prescribedDate: new Date().toISOString().split('T')[0]
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn('AI prescription parsing fallback to rule engine:', err);
+  }
+
+  return parsePrescriptionText(rawText, doctorName);
 }

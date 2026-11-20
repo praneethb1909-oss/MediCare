@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileBottomNav } from './mobile/MobileBottomNav';
@@ -19,7 +19,7 @@ export function DashboardLayout({ children, currentView, setView, role, user }: 
   const [isAIOpen, setIsAIOpen] = useState(false);
 
   // Close sidebar on view change for mobile
-  React.useEffect(() => {
+  useEffect(() => {
     if (window.innerWidth <= 1024) {
       setIsSidebarOpen(false);
     }

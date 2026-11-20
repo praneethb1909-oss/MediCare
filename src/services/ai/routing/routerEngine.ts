@@ -27,8 +27,47 @@ export class SmartLLMRouter {
   private roundRobinIndices: Map<number, number> = new Map(); // priorityTier -> currentIndex
 
   private constructor() {
+    this.validateEnvironmentKeysOnStartup();
     this.initializeDefaultKeys();
     this.loadState();
+    this.assertEnabledKeysAvailable();
+  }
+
+  /**
+   * Enforces that required NVIDIA API keys are present in environment variables.
+   * Hardcoded keys are strictly rejected to prevent security breaches and unauthorized billing.
+   */
+  private validateEnvironmentKeysOnStartup(): void {
+    const env = (typeof import.meta !== 'undefined' && (import.meta as any).env) 
+      ? (import.meta as any).env 
+      : (typeof process !== 'undefined' && (process as any).env ? (process as any).env : {});
+
+    const autogenKey = (env.VITE_NVIDIA_API_KEY_AUTOGEN || '').trim();
+    const mistralKey = (env.VITE_NVIDIA_API_KEY_MISTRAL || '').trim();
+
+    if (!autogenKey || autogenKey.includes('placeholder') || autogenKey.includes('your_')) {
+      console.warn('[SmartLLMRouter] Startup Check: VITE_NVIDIA_API_KEY_AUTOGEN is missing or not configured in environment variables.');
+    }
+    if (!mistralKey || mistralKey.includes('placeholder') || mistralKey.includes('your_')) {
+      console.warn('[SmartLLMRouter] Startup Check: VITE_NVIDIA_API_KEY_MISTRAL is missing or not configured in environment variables.');
+    }
+  }
+
+  /**
+   * Guarantees the router never proceeds with zero enabled models.
+   * Emits a hard, actionable error if no usable API key is configured so that
+   * misconfiguration surfaces at startup rather than as a confusing runtime failure.
+   */
+  private assertEnabledKeysAvailable(): void {
+    const enabledCount = Array.from(this.keys.values()).filter(k => k.enabled).length;
+    if (enabledCount === 0) {
+      const message =
+        '[SmartLLMRouter] FATAL: No enabled LLM API keys are available. ' +
+        'Set VITE_NVIDIA_API_KEY_AUTOGEN or VITE_NVIDIA_API_KEY_MISTRAL (or a valid VITE_GEMINI_API_KEY) ' +
+        'before routing LLM requests. All LLM routing calls will fail until a key is configured.';
+      console.error(message);
+      throw new Error(message);
+    }
   }
 
   public static getInstance(): SmartLLMRouter {
@@ -45,100 +84,121 @@ export class SmartLLMRouter {
     const env = (typeof import.meta !== 'undefined' && (import.meta as any).env) 
       ? (import.meta as any).env 
       : (typeof process !== 'undefined' && (process as any).env ? (process as any).env : {});
+    
+    const nvidiaKey1 = (env.VITE_NVIDIA_API_KEY_AUTOGEN || '').trim();
+    const nvidiaModel1 = env.VITE_NVIDIA_MODEL_AUTOGEN || 'NVIDIABuild-Autogen-42';
+
+    const nvidiaKey2 = (env.VITE_NVIDIA_API_KEY_MISTRAL || '').trim();
+    const nvidiaModel2 = env.VITE_NVIDIA_MODEL_MISTRAL || 'mistralai/mistral-large-4-1t-a52b';
+
     const geminiKey = env.VITE_GEMINI_API_KEY || '';
-    const anthropicKey = env.VITE_ANTHROPIC_API_KEY || '';
 
     const defaultKeys: LLMKeyConfig[] = [
       {
-        id: 'gemini-flash-primary',
-        name: 'Gemini 1.5 Flash (Primary Tier 1)',
-        provider: 'gemini',
-        apiKey: geminiKey || 'AIzaSyDemoLocalTestingKey1234567890',
-        model: 'gemini-1.5-flash',
+        id: 'nvidia-autogen-42',
+        name: 'NVIDIA Build (Autogen-42)',
+        provider: 'nvidia',
+        apiKey: nvidiaKey1,
+        model: nvidiaModel1,
+        baseUrl: 'https://integrate.api.nvidia.com/v1',
         priority: 1,
         weight: 5,
         rateLimits: {
-          rpm: 15,
-          tpm: 1000000,
-          rpd: 1500
-        },
-        quotas: {
-          monthlyBudgetUsd: 50,
-          costPer1kPromptTokens: 0.000075,
-          costPer1kCompletionTokens: 0.0003
-        },
-        enabled: true,
-        tags: ['clinical', 'chat', 'general']
-      },
-      {
-        id: 'gemini-flash-secondary',
-        name: 'Gemini 1.5 Flash (Overflow Key 2)',
-        provider: 'gemini',
-        apiKey: geminiKey || 'AIzaSyDemoSecondaryKey987654321',
-        model: 'gemini-1.5-flash',
-        priority: 1,
-        weight: 3,
-        rateLimits: {
-          rpm: 15,
-          tpm: 1000000,
-          rpd: 1500
-        },
-        quotas: {
-          monthlyBudgetUsd: 50,
-          costPer1kPromptTokens: 0.000075,
-          costPer1kCompletionTokens: 0.0003
-        },
-        enabled: true,
-        tags: ['clinical', 'chat']
-      },
-      {
-        id: 'claude-sonnet-backup',
-        name: 'Claude 3.5 Sonnet (Tier 2 High-Precision Backup)',
-        provider: 'anthropic',
-        apiKey: anthropicKey || 'sk-ant-demo-placeholder-tier2',
-        model: 'claude-3-5-sonnet',
-        priority: 2,
-        weight: 2,
-        rateLimits: {
-          rpm: 50,
-          tpm: 40000,
+          rpm: 40,
+          tpm: 100000,
           rpd: 5000
         },
         quotas: {
-          monthlyBudgetUsd: 150,
-          costPer1kPromptTokens: 0.003,
-          costPer1kCompletionTokens: 0.015
+          monthlyBudgetUsd: 100,
+          costPer1kPromptTokens: 0.0008,
+          costPer1kCompletionTokens: 0.0025
         },
-        enabled: true,
-        tags: ['complex_analysis', 'clinical_summary']
+        enabled: Boolean(nvidiaKey1 && nvidiaKey1.length > 0 && !nvidiaKey1.includes('placeholder')),
+        tags: ['nvidia', 'autogen', 'clinical', 'chat']
       },
       {
-        id: 'openai-mini-failover',
-        name: 'OpenAI GPT-4o Mini (Tier 3 Emergency Failover)',
-        provider: 'openai',
-        apiKey: 'sk-demo-openai-failover-tier3',
-        model: 'gpt-4o-mini',
-        priority: 3,
-        weight: 1,
+        id: 'nvidia-mistral-large',
+        name: 'Mistral Large (NVIDIA NIM)',
+        provider: 'nvidia',
+        apiKey: nvidiaKey2,
+        model: nvidiaModel2,
+        baseUrl: 'https://integrate.api.nvidia.com/v1',
+        priority: 1,
+        weight: 5,
         rateLimits: {
-          rpm: 500,
-          tpm: 200000,
-          rpd: 10000
+          rpm: 40,
+          tpm: 100000,
+          rpd: 5000
         },
         quotas: {
-          monthlyBudgetUsd: 30,
-          costPer1kPromptTokens: 0.00015,
-          costPer1kCompletionTokens: 0.0006
+          monthlyBudgetUsd: 100,
+          costPer1kPromptTokens: 0.002,
+          costPer1kCompletionTokens: 0.006
         },
-        enabled: true,
-        tags: ['emergency_failover']
+        enabled: Boolean(nvidiaKey2 && nvidiaKey2.length > 0 && !nvidiaKey2.includes('placeholder')),
+        tags: ['nvidia', 'mistral', 'clinical', 'chat', 'summary']
       }
     ];
+
+    // Only add Gemini if a valid non-demo key is explicitly configured in .env
+    if (geminiKey && !geminiKey.includes('Demo') && !geminiKey.includes('placeholder') && geminiKey.length > 20) {
+      defaultKeys.push({
+        id: 'gemini-flash-backup',
+        name: 'Gemini 1.5 Flash (Tier 2 External Backup)',
+        provider: 'gemini',
+        apiKey: geminiKey,
+        model: 'gemini-1.5-flash',
+        priority: 2,
+        weight: 2,
+        rateLimits: { rpm: 15, tpm: 1000000, rpd: 1500 },
+        quotas: { monthlyBudgetUsd: 50, costPer1kPromptTokens: 0.000075, costPer1kCompletionTokens: 0.0003 },
+        enabled: true,
+        tags: ['clinical', 'general']
+      });
+    }
+
+    // Local development fallback: when no real provider key is configured, register an
+    // offline simulation entry so the router always has at least one enabled model and
+    // the app can run locally without NVIDIA (or any other) API keys.
+    defaultKeys.push(
+      this.buildLocalFallback(!this.hasRealProviderKey(nvidiaKey1, nvidiaKey2, geminiKey))
+    );
 
     defaultKeys.forEach(k => {
       this.keys.set(k.id, k);
       this.initializeKeyMetrics(k.id);
     });
+  }
+
+  /**
+   * Determines whether any real (non-placeholder) provider key is configured.
+   */
+  private hasRealProviderKey(nvidiaKey1: string, nvidiaKey2: string, geminiKey: string): boolean {
+    const isValid = (k: string) => Boolean(k && !k.includes('placeholder') && !k.includes('your_'));
+    const geminiValid = Boolean(
+      geminiKey && !geminiKey.includes('Demo') && !geminiKey.includes('placeholder') && geminiKey.length > 20
+    );
+    return isValid(nvidiaKey1) || isValid(nvidiaKey2) || geminiValid;
+  }
+
+  /**
+   * Builds the offline local-development fallback key entry.
+   * Uses the simulator in providerClients (triggered by the 'DemoLocal' key marker).
+   */
+  private buildLocalFallback(enabled: boolean): LLMKeyConfig {
+    return {
+      id: 'local-offline-fallback',
+      name: 'Olmera Local Fallback (Offline Simulation)',
+      provider: 'custom',
+      apiKey: 'DemoLocalOfflineFallback',
+      model: 'olmera-local-simulation',
+      priority: 3,
+      weight: 1,
+      rateLimits: { rpm: 600, tpm: 1000000, rpd: 100000 },
+      quotas: { monthlyBudgetUsd: 0, costPer1kPromptTokens: 0, costPer1kCompletionTokens: 0 },
+      enabled,
+      tags: ['local', 'offline', 'development', 'fallback']
+    };
   }
 
   private initializeKeyMetrics(keyId: string): void {
@@ -173,10 +233,79 @@ export class SmartLLMRouter {
       if (savedKeys) {
         const parsed: LLMKeyConfig[] = JSON.parse(savedKeys);
         parsed.forEach(k => {
-          this.keys.set(k.id, k);
-          this.initializeKeyMetrics(k.id);
+          const isOutdated = 
+            k.apiKey.includes('DemoLocal') || 
+            k.apiKey.includes('sk-demo') || 
+            k.apiKey.includes('SecondaryKey') || 
+            k.apiKey.includes('placeholder') || 
+            k.id === 'gemini-flash-primary' || 
+            k.id === 'gemini-flash-secondary' || 
+            k.id === 'claude-sonnet-backup' || 
+            k.id === 'openai-mini-failover';
+          if (!isOutdated) {
+            this.keys.set(k.id, k);
+            this.initializeKeyMetrics(k.id);
+          }
         });
       }
+
+      // Ensure active NVIDIA models are always registered
+      const env = (typeof import.meta !== 'undefined' && (import.meta as any).env) 
+        ? (import.meta as any).env 
+        : (typeof process !== 'undefined' && (process as any).env ? (process as any).env : {});
+
+      const nvidiaKey1 = (env.VITE_NVIDIA_API_KEY_AUTOGEN || '').trim();
+      const nvidiaModel1 = env.VITE_NVIDIA_MODEL_AUTOGEN || 'NVIDIABuild-Autogen-42';
+      const nvidiaKey2 = (env.VITE_NVIDIA_API_KEY_MISTRAL || '').trim();
+      const nvidiaModel2 = env.VITE_NVIDIA_MODEL_MISTRAL || 'mistralai/mistral-large-4-1t-a52b';
+
+      if (!this.keys.has('nvidia-autogen-42')) {
+        this.keys.set('nvidia-autogen-42', {
+          id: 'nvidia-autogen-42',
+          name: 'NVIDIA Build (Autogen-42)',
+          provider: 'nvidia',
+          apiKey: nvidiaKey1,
+          model: nvidiaModel1,
+          baseUrl: 'https://integrate.api.nvidia.com/v1',
+          priority: 1,
+          weight: 5,
+          rateLimits: { rpm: 40, tpm: 100000, rpd: 5000 },
+          quotas: { monthlyBudgetUsd: 100, costPer1kPromptTokens: 0.0008, costPer1kCompletionTokens: 0.0025 },
+          enabled: Boolean(nvidiaKey1 && nvidiaKey1.length > 0 && !nvidiaKey1.includes('placeholder')),
+          tags: ['nvidia', 'autogen', 'clinical', 'chat']
+        });
+        this.initializeKeyMetrics('nvidia-autogen-42');
+      }
+
+      if (!this.keys.has('nvidia-mistral-large')) {
+        this.keys.set('nvidia-mistral-large', {
+          id: 'nvidia-mistral-large',
+          name: 'Mistral Large (NVIDIA NIM)',
+          provider: 'nvidia',
+          apiKey: nvidiaKey2,
+          model: nvidiaModel2,
+          baseUrl: 'https://integrate.api.nvidia.com/v1',
+          priority: 1,
+          weight: 5,
+          rateLimits: { rpm: 40, tpm: 100000, rpd: 5000 },
+          quotas: { monthlyBudgetUsd: 100, costPer1kPromptTokens: 0.002, costPer1kCompletionTokens: 0.006 },
+          enabled: Boolean(nvidiaKey2 && nvidiaKey2.length > 0 && !nvidiaKey2.includes('placeholder')),
+          tags: ['nvidia', 'mistral', 'clinical', 'chat', 'summary']
+        });
+        this.initializeKeyMetrics('nvidia-mistral-large');
+      }
+
+      // Ensure the local offline fallback is always registered, keeping its enabled
+      // state synced to whether any real provider key is configured.
+      const geminiKey = env.VITE_GEMINI_API_KEY || '';
+      const fallbackEnabled = !this.hasRealProviderKey(nvidiaKey1, nvidiaKey2, geminiKey);
+      const existingFallback = this.keys.get('local-offline-fallback');
+      if (existingFallback) {
+        existingFallback.enabled = fallbackEnabled;
+      } else {
+        this.keys.set('local-offline-fallback', this.buildLocalFallback(fallbackEnabled));
+      }
+      this.initializeKeyMetrics('local-offline-fallback');
 
       const savedMetrics = localStorage.getItem(STORAGE_ROUTER_METRICS);
       if (savedMetrics) {
@@ -387,6 +516,16 @@ export class SmartLLMRouter {
   public async completePrompt(
     request: RouterExecutionRequest
   ): Promise<RouterExecutionResponse> {
+    // Hard error when no enabled keys exist, so misconfiguration is surfaced
+    // clearly instead of being masked by the generic rate-limit failure path.
+    if (!Array.from(this.keys.values()).some(k => k.enabled)) {
+      throw new ProviderAPIError(
+        'No enabled LLM API keys are available. Configure VITE_NVIDIA_API_KEY_AUTOGEN, ' +
+        'VITE_NVIDIA_API_KEY_MISTRAL, or a valid VITE_GEMINI_API_KEY before routing requests.',
+        503
+      );
+    }
+
     const maxAttempts = Math.min(4, this.keys.size);
     const excludedKeyIds = new Set<string>();
     const failovers: Array<{ keyId: string; reason: string; statusCode?: number }> = [];
@@ -415,7 +554,7 @@ export class SmartLLMRouter {
           key,
           request.prompt,
           request.systemInstruction,
-          request.temperature ?? 0.7,
+          request.temperature ?? 0.5,
           request.maxTokens ?? 1024
         );
 

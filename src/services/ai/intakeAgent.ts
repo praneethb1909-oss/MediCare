@@ -6,6 +6,7 @@
  */
 
 import { evaluateEmergency, EmergencyEvaluation } from './emergencyTriage';
+import { SmartLLMRouter } from './routing';
 
 export interface IntakeQuestion {
   id: string;
@@ -134,4 +135,53 @@ Severity Score: ${severity}/10 ${severity >= 7 ? '(ALERT: Moderate-High Severity
     emergencyEvaluation: emergencyCheck,
     structuredDoctorBrief
   };
+}
+
+/**
+ * Intelligent Physician Brief Synthesis using NVIDIA NIM Multi-Model Router
+ */
+export async function compileIntakeBriefWithLLM(
+  answers: Record<string, any>,
+  patientName: string = 'Patient',
+  appointmentId: string = 'apt-intake',
+  doctorName?: string,
+  specialty?: string
+): Promise<PatientIntakeSubmission> {
+  const baseSubmission = compileIntakeBrief(answers, patientName, appointmentId);
+
+  try {
+    const router = SmartLLMRouter.getInstance();
+    const prompt = `Synthesize this patient intake for attending specialist Dr. ${doctorName || 'Practitioner'} (${specialty || 'General Medicine'}):
+Patient: ${patientName}
+Chief Complaint: ${baseSubmission.chiefComplaint}
+Duration: ${baseSubmission.duration}
+Severity Score: ${baseSubmission.severityRating}/10
+Aggravating Factors: ${baseSubmission.aggravatingFactors}
+Current Medications / Interventions: ${baseSubmission.currentMedications}
+Allergies: ${baseSubmission.knownAllergies}
+Emergency Flag: ${baseSubmission.emergencyEvaluation.isEmergency ? 'YES - High Risk' : 'None detected'}
+
+Generate a structured physician pre-consultation brief with:
+1. Executive Clinical Summary
+2. Timeline & Provoking Factors
+3. Preliminary Diagnostic Considerations (Differential)
+4. Recommended Examination & Lab Focus Points
+Format in concise, bulleted clinical presentation format.`;
+
+    const res = await router.completePrompt({
+      prompt,
+      systemInstruction: 'You are an Olmera AI Clinical Intake Specialist assisting an outpatient physician.',
+      temperature: 0.5,
+      maxTokens: 1024,
+      taskType: 'clinical_summary'
+    });
+
+    if (res.content.trim().length > 50) {
+      baseSubmission.structuredDoctorBrief = res.content;
+    }
+  } catch (err) {
+    console.warn('AI intake brief synthesis fallback:', err);
+  }
+
+  return baseSubmission;
 }

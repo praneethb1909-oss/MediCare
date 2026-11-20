@@ -8,8 +8,9 @@ import {
   Download, Clock, User, Filter, RefreshCw, Sparkles, ShieldCheck, 
   TrendingUp, Activity, X, ChevronRight, AlertTriangle, ExternalLink 
 } from 'lucide-react';
-import { extractBiomarkers, ExtractedReportSummary, LabBiomarker } from '../services/ai/reportExtractor';
+import { extractBiomarkers, analyzeReportWithLLM, ExtractedReportSummary, LabBiomarker } from '../services/ai/reportExtractor';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { processClinicalFileUpload, resolveClinicalDocumentUrl } from '../services/storage/clinicalStorage';
 
 interface Report {
   id: string;
@@ -38,6 +39,8 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
   const [showPreview, setShowPreview] = useState<string | null>(null);
   const [aiReportSummary, setAiReportSummary] = useState<ExtractedReportSummary | null>(null);
   const [aiLanguage, setAiLanguage] = useState<'en' | 'te' | 'hi'>('en');
+  const [aiDeepNarrative, setAiDeepNarrative] = useState<string | null>(null);
+  const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
   const loadReports = useCallback(async () => {
     if (!user) {
@@ -69,48 +72,18 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
       try {
         const stored = localStorage.getItem('olmera_reports_cache');
         if (stored) cached = JSON.parse(stored);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Cached reports parsing warning:', e);
+      }
 
       const merged = [...reportsData];
       cached.forEach(c => {
-        if (!merged.some(r => r.id === c.id || (r.title === c.title && r.uploaded_at === c.uploaded_at))) {
+        if (!merged.some(r => r.id === c.id)) {
           merged.push(c);
         }
       });
 
-      if (merged.length === 0) {
-        setReports([
-          {
-            id: 'sample-rep-1',
-            patient_id: user.uid,
-            title: 'Comprehensive Metabolic Panel (CMP) & Glycemic Control',
-            file_url: 'https://example.com/cmp-hba1c.pdf',
-            report_type: 'Lab Result',
-            uploaded_at: '2026-11-12T10:30:00Z',
-            patient_name: user.displayName || 'Olmera Patient'
-          },
-          {
-            id: 'sample-rep-2',
-            patient_id: user.uid,
-            title: 'Lipid Profile & Cardiovascular Risk Assessment',
-            file_url: 'https://example.com/lipid-report.pdf',
-            report_type: 'Lab Result',
-            uploaded_at: '2026-11-04T09:15:00Z',
-            patient_name: user.displayName || 'Olmera Patient'
-          },
-          {
-            id: 'sample-rep-3',
-            patient_id: user.uid,
-            title: 'Renal Function & Serum Creatinine Assessment',
-            file_url: 'https://example.com/renal-panel.pdf',
-            report_type: 'Lab Result',
-            uploaded_at: '2026-10-18T14:20:00Z',
-            patient_name: user.displayName || 'Olmera Patient'
-          }
-        ]);
-      } else {
-        setReports(merged);
-      }
+      setReports(merged);
     } catch (err: any) {
       console.error('Error loading reports:', err);
     } finally {
@@ -136,10 +109,10 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
     e.preventDefault();
     if (!user || !selectedFile) return;
     
-    // File validation
-    const MAX_SIZE = 15 * 1024 * 1024; // 15MB
+    // File validation: supports up to 25MB clinical images and diagnostics
+    const MAX_SIZE = 25 * 1024 * 1024;
     if (selectedFile.size > MAX_SIZE) {
-      setError('File size exceeds 15MB limit');
+      setError('File size exceeds clinical document limit (25MB)');
       return;
     }
 
@@ -147,99 +120,42 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
     setUploadProgress(25);
     setError('');
     setSuccess('');
+
+    // Smooth visual ticker so progress bar is always alive
+    const progressTicker = setInterval(() => {
+      setUploadProgress(prev => (prev < 90 ? prev + 15 : prev));
+    }, 250);
     
     try {
-      // Start reading Data URL immediately so we always have a high-speed instant fallback
-      const dataUrlPromise = readFileAsDataUrl(selectedFile);
-      let finalFileUrl = '';
-
-      // Check if active Cloud Storage is configured
-      if (isFirebaseConfigured) {
-        try {
-          const fileExt = selectedFile.name.split('.').pop() || 'dat';
-          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-          const filePath = `reports/${user.uid}/${fileName}`;
-          const storageRef = ref(storage, filePath);
-          const task = uploadBytesResumable(storageRef, selectedFile, { contentType: selectedFile.type });
-
-          // Wrap with a 2.5-second safety timeout so network/CORS hangs never stall the UI
-          finalFileUrl = await Promise.race([
-            new Promise<string>((resolve, reject) => {
-              task.on('state_changed', 
-                (snapshot) => {
-                  const pct = Math.max(25, Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 90));
-                  setUploadProgress(pct);
-                },
-                (err) => reject(err),
-                async () => {
-                  try {
-                    const downloadUrl = await getDownloadURL(task.snapshot.ref);
-                    resolve(downloadUrl);
-                  } catch (e) {
-                    reject(e);
-                  }
-                }
-              );
-            }),
-            new Promise<string>((_, reject) => 
-              setTimeout(() => reject(new Error('Storage timeout - transitioning to high-speed clinical pipeline')), 2500)
-            )
-          ]);
-        } catch (storageErr) {
-          console.warn('Cloud storage upload timed out or failed, utilizing embedded clinical data URL:', storageErr);
-          setUploadProgress(70);
-          finalFileUrl = await dataUrlPromise;
-        }
-      } else {
-        // High-speed local pipeline with realistic clinical verification progress
-        setUploadProgress(45);
-        await new Promise(r => setTimeout(r, 120));
-        setUploadProgress(75);
-        finalFileUrl = await dataUrlPromise;
-        await new Promise(r => setTimeout(r, 100));
-        setUploadProgress(90);
-      }
-
-      setUploadProgress(95);
-
       const reportTitle = newReport.title.trim() || selectedFile.name.replace(/\.[^/.]+$/, '');
       const reportType = newReport.type || 'Lab Result';
-      const newReportItem: Report = {
-        id: replacingReportId || `rep-${Date.now()}`,
-        patient_id: user.uid,
+
+      // Unified high-capacity clinical storage pipeline
+      const storedFile = await processClinicalFileUpload(selectedFile, {
+        userId: user.uid,
+        userName: user.displayName || user.email?.split('@')[0] || 'Verified Patient',
         title: reportTitle,
-        report_type: reportType,
-        file_url: finalFileUrl,
-        uploaded_at: new Date().toISOString(),
+        reportType,
+        onProgress: (percent) => setUploadProgress(prev => Math.max(prev, percent))
+      });
+
+      clearInterval(progressTicker);
+
+      const newReportItem: Report = {
+        id: replacingReportId || storedFile.id,
+        patient_id: user.uid,
+        title: storedFile.title,
+        report_type: storedFile.report_type || reportType,
+        file_url: storedFile.url,
+        uploaded_at: storedFile.uploaded_at,
         patient_name: user.displayName || user.email?.split('@')[0] || 'Patient'
       };
 
-      // Attempt to save to Firestore database
-      try {
-        await addDoc(collection(db, 'medical_reports'), {
-          patient_id: user.uid,
-          title: reportTitle,
-          report_type: reportType,
-          file_url: finalFileUrl,
-          uploaded_at: new Date().toISOString()
-        });
-      } catch (firestoreErr) {
-        console.warn('Firestore write warning, ensuring local UI persistence:', firestoreErr);
-      }
-
-      // Update local state immediately so user sees their report right away
+      // Update local state immediately so user sees their report right away in all views
       setReports(prev => {
         const withoutCurrent = prev.filter(r => r.id !== newReportItem.id && !r.id.startsWith('sample-'));
         return [newReportItem, ...withoutCurrent];
       });
-
-      // Save to localStorage cache as well for offline and fast retrieval across views
-      try {
-        const stored = localStorage.getItem('olmera_reports_cache');
-        const list = stored ? JSON.parse(stored) : [];
-        const updated = [newReportItem, ...list.filter((r: any) => r.id !== newReportItem.id)];
-        localStorage.setItem('olmera_reports_cache', JSON.stringify(updated.slice(0, 30)));
-      } catch (e) {}
 
       setUploadProgress(100);
       setSuccess('Clinical report verified and uploaded successfully!');
@@ -250,33 +166,54 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
         setUploadProgress(0);
         setReplacingReportId(null);
         setNewReport({ title: '', type: 'Lab Result' });
-      }, 600);
+      }, 500);
 
     } catch (err: any) {
+      clearInterval(progressTicker);
       console.error('Upload error:', err);
       setError(err.message || 'Error processing report');
       setUploadProgress(0);
     } finally {
+      clearInterval(progressTicker);
       setUploading(false);
     }
   };
 
-  const handleDownload = async (url: string, title: string) => {
+  const handleViewReport = async (report: Report) => {
+    try {
+      const resolvedUrl = await resolveClinicalDocumentUrl(report.id, report.file_url);
+      setShowPreview(resolvedUrl || report.file_url);
+    } catch {
+      setShowPreview(report.file_url);
+    }
+  };
+
+  const handleDownload = async (url: string, title: string, reportId?: string) => {
     if (!url || url.startsWith('https://example.com')) {
-      alert('This is a dummy report for demonstration. No real file is available for download.');
+      alert('No file is available for download for this report.');
       return;
+    }
+
+    let downloadUrl = url;
+    if (reportId) {
+      try {
+        const resolved = await resolveClinicalDocumentUrl(reportId, url);
+        if (resolved) downloadUrl = resolved;
+      } catch (e) {
+        console.warn('Document URL resolution warning:', e);
+      }
     }
     
     try {
       const link = document.createElement('a');
-      link.href = url;
+      link.href = downloadUrl;
       link.download = `${(title || 'medical-report').replace(/\s+/g, '_')}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (err) {
       console.error('Download failed:', err);
-      window.open(url, '_blank');
+      window.open(downloadUrl, '_blank');
     }
   };
 
@@ -287,6 +224,18 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
       setLoading(true);
       // Delete from Firestore
       await deleteDoc(doc(db, 'medical_reports', reportId));
+
+      // Remove from persistent local cache
+      try {
+        const stored = localStorage.getItem('olmera_reports_cache');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const filtered = list.filter((r: any) => r.id !== reportId);
+          localStorage.setItem('olmera_reports_cache', JSON.stringify(filtered));
+        }
+      } catch (e) {
+        console.warn('Cache removal warning:', e);
+      }
       
       // Attempt to delete from Storage (optional, might fail if rules are strict)
       try {
@@ -411,9 +360,19 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
                     </div>
                     <div className="mt-4 pt-3 border-t border-[var(--color-line)]/50 flex items-center justify-between">
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const summary = extractBiomarkers(report.title, report.title);
                           setAiReportSummary(summary);
+                          setAiDeepNarrative(null);
+                          setIsAnalyzingAI(true);
+                          try {
+                            const narrative = await analyzeReportWithLLM(summary, aiLanguage);
+                            setAiDeepNarrative(narrative);
+                          } catch (e) {
+                            console.warn('AI report narrative generation warning:', e);
+                          } finally {
+                            setIsAnalyzingAI(false);
+                          }
                         }}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-primary)] text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-all shadow-sm active:scale-95"
                         title="Analyze Biomarkers with Olmera AI"
@@ -426,12 +385,12 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
                   </div>
                   <div className="flex flex-col gap-2">
                     <button 
-                      onClick={() => setShowPreview(report.file_url)}
+                      onClick={() => handleViewReport(report)}
                       className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-200" title="View Report">
                       <Eye size={18} />
                     </button>
                     <button 
-                      onClick={() => handleDownload(report.file_url, report.title)}
+                      onClick={() => handleDownload(report.file_url, report.title, report.id)}
                       className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-200" title="Download">
                       <Download size={18} />
                     </button>
@@ -597,13 +556,13 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
 
               {uploading && (
                 <div className="space-y-2">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-[#1E88E5]">
+                  <div className="flex justify-between text-[11px] font-semibold uppercase tracking-wider text-[var(--color-primary)] font-ui">
                     <span>Uploading Clinical Data...</span>
                     <span>{uploadProgress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-[var(--color-surface-subtle)] rounded-full overflow-hidden border border-[var(--color-line)]">
                     <div 
-                      className="h-full bg-[#1E88E5] transition-all duration-300 ease-out"
+                      className="h-full bg-[var(--color-primary)] transition-all duration-300 ease-out"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
@@ -686,9 +645,15 @@ export function MedicalReportPage({ pageLabel = 'Medical Reports' }: { pageLabel
                   <Activity size={14} />
                   <span>Clinical Narrative Summary ({aiLanguage.toUpperCase()})</span>
                 </div>
-                <p className="text-sm text-[var(--color-ink)] leading-relaxed">
-                  {aiReportSummary.overallSummary[aiLanguage]}
+                <p className="text-sm text-[var(--color-ink)] leading-relaxed whitespace-pre-line">
+                  {aiDeepNarrative || aiReportSummary.overallSummary[aiLanguage]}
                 </p>
+                {isAnalyzingAI && (
+                  <div className="mt-3 text-xs text-[var(--color-primary)] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-ping"></span>
+                    <span className="font-medium">NVIDIA AI is synthesizing biomarker dynamics...</span>
+                  </div>
+                )}
               </div>
 
               {/* Critical Alerts Banner */}

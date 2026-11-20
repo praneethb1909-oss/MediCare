@@ -2,7 +2,7 @@
  * Olmera Healthcare - Intelligent LLM API Router Types & Schemas
  */
 
-export type LLMProvider = 'gemini' | 'anthropic' | 'openai' | 'custom';
+export type LLMProvider = 'gemini' | 'anthropic' | 'openai' | 'nvidia' | 'custom';
 
 export type KeyStatus = 
   | 'HEALTHY'          // Fully operational and within quotas

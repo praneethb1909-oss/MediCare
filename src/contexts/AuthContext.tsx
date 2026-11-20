@@ -9,17 +9,21 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
+import { sessionManager } from '../services/auth/sessionManager';
+import { HospitalStaffProfile } from '../services/auth/hospitalIdp';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   role: string | null;
   hospitalId: string | null;
+  hospitalAdminProfile: HospitalStaffProfile | null;
   signUp: (email: string, password: string, fullName: string, role: string, hospitalId?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   fetchUserRole: (userId: string) => Promise<void>;
-  loginAsDemo: (demoRole: 'patient' | 'doctor' | 'admin', customEmail?: string, customName?: string) => void;
+  loginAsDemo: (demoRole: 'patient' | 'doctor' | 'admin', customEmail?: string, customName?: string, customHospitalId?: string) => void;
+  signInHospitalAdmin: (adminProfile: HospitalStaffProfile, sessionToken: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,9 +32,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [hospitalId, setHospitalId] = useState<string | null>(null);
+  const [hospitalAdminProfile, setHospitalAdminProfile] = useState<HospitalStaffProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const setDemoSession = (demoRole: 'patient' | 'doctor' | 'admin', customEmail?: string, customName?: string) => {
+  const signInHospitalAdmin = (adminProfile: HospitalStaffProfile, sessionToken: string) => {
+    // 1. Establish session in hospital session manager
+    sessionManager.startSession(adminProfile, sessionToken);
+
+    // 2. Set real authenticated user in AuthContext
+    const authenticatedAdminUser = {
+      uid: adminProfile.staffId || adminProfile.id,
+      email: adminProfile.email,
+      displayName: adminProfile.fullName,
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {
+        creationTime: adminProfile.lastLogin || new Date().toISOString(),
+        lastSignInTime: new Date().toISOString()
+      }
+    } as any;
+
+    setUser(authenticatedAdminUser);
+    setRole('admin');
+    setHospitalId(adminProfile.hospitalId);
+    setHospitalAdminProfile(adminProfile);
+    setLoading(false);
+
+    // Clear conflicting demo flags
+    sessionStorage.removeItem('olmera_demo_role');
+    sessionStorage.removeItem('olmera_demo_email');
+    sessionStorage.removeItem('olmera_demo_name');
+  };
+
+  const setDemoSession = (demoRole: 'patient' | 'doctor' | 'admin', customEmail?: string, customName?: string, customHospitalId?: string) => {
     const defaultEmails = {
       patient: 'patient@olmera.health',
       doctor: 'suresh.a@olmera.health',
@@ -51,34 +85,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName
     } as any);
     setRole(demoRole);
-    setHospitalId(demoRole === 'doctor' ? 'hosp-2' : demoRole === 'patient' ? 'hosp-1' : null);
+    setHospitalId(customHospitalId || (demoRole === 'doctor' ? 'hosp-2' : 'hosp-1'));
     setLoading(false);
     sessionStorage.setItem('olmera_demo_role', demoRole);
     if (customEmail) sessionStorage.setItem('olmera_demo_email', customEmail);
     if (customName) sessionStorage.setItem('olmera_demo_name', customName);
+    if (customHospitalId) sessionStorage.setItem('olmera_demo_hospital_id', customHospitalId);
   };
 
   useEffect(() => {
-    const savedDemoRole = (sessionStorage.getItem('olmera_demo_role') || sessionStorage.getItem('medicare_demo_role')) as 'patient' | 'doctor' | 'admin' | null;
-    if (savedDemoRole) {
-      const savedEmail = sessionStorage.getItem('olmera_demo_email') || sessionStorage.getItem('medicare_demo_email') || undefined;
-      const savedName = sessionStorage.getItem('olmera_demo_name') || sessionStorage.getItem('medicare_demo_name') || undefined;
-      setDemoSession(savedDemoRole, savedEmail, savedName);
+    // Safety timeout: ensure loading state resolves promptly so the homepage is never blocked
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 1200);
+
+    // 1. Check if an active authenticated Hospital Admin session exists
+    const activeAdminSession = sessionManager.getActiveSession();
+    if (activeAdminSession && sessionManager.isSessionValid()) {
+      clearTimeout(safetyTimer);
+      signInHospitalAdmin(activeAdminSession.user, activeAdminSession.token);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const savedDemoRole = (sessionStorage.getItem('olmera_demo_role') || sessionStorage.getItem('medicare_demo_role')) as 'patient' | 'doctor' | 'admin' | null;
+    if (savedDemoRole) {
+      clearTimeout(safetyTimer);
+      const savedEmail = sessionStorage.getItem('olmera_demo_email') || sessionStorage.getItem('medicare_demo_email') || undefined;
+      const savedName = sessionStorage.getItem('olmera_demo_name') || sessionStorage.getItem('medicare_demo_name') || undefined;
+      const savedHosp = sessionStorage.getItem('olmera_demo_hospital_id') || undefined;
+      setDemoSession(savedDemoRole, savedEmail, savedName, savedHosp);
+      return;
+    }
+
+    if (!isFirebaseConfigured) {
+      clearTimeout(safetyTimer);
+      setUser(null);
+      setRole(null);
+      setHospitalId(null);
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        await fetchUserRole(firebaseUser.uid);
+        // Let the role/hospitalId lookup run to completion so authorization context
+        // always populates. The timeout is only a safety net that releases the loading
+        // state if the Firestore lookup hangs, without aborting the background request.
+        const roleSafetyTimer = setTimeout(() => {
+          setLoading(false);
+          clearTimeout(safetyTimer);
+        }, 800);
+
+        fetchUserRole(firebaseUser.uid)
+          .catch(() => {
+            // fetchUserRole handles its own errors and defaults the role to 'patient'
+          })
+          .finally(() => {
+            clearTimeout(roleSafetyTimer);
+            setLoading(false);
+            clearTimeout(safetyTimer);
+          });
       } else {
         setRole(null);
         setHospitalId(null);
         setLoading(false);
+        clearTimeout(safetyTimer);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   const fetchUserRole = async (userId: string) => {
@@ -205,9 +284,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Terminate HIPAA session manager
+    sessionManager.terminateSession('user_logout');
+    setHospitalAdminProfile(null);
     sessionStorage.removeItem('olmera_demo_role');
     sessionStorage.removeItem('olmera_demo_email');
     sessionStorage.removeItem('olmera_demo_name');
+    sessionStorage.removeItem('olmera_demo_hospital_id');
+    sessionStorage.removeItem('olmera_hospital_admin_session');
     sessionStorage.removeItem('medicare_demo_role');
     sessionStorage.removeItem('medicare_demo_email');
     sessionStorage.removeItem('medicare_demo_name');
@@ -227,11 +311,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading, 
       role, 
       hospitalId, 
+      hospitalAdminProfile,
       signUp, 
       signIn, 
       signOut, 
       fetchUserRole,
-      loginAsDemo: setDemoSession
+      loginAsDemo: setDemoSession,
+      signInHospitalAdmin
     }}>
       {children}
     </AuthContext.Provider>

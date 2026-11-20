@@ -31,9 +31,11 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
     const nextDark = !document.documentElement.classList.contains('dark');
     if (nextDark) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
       localStorage.setItem('olmera_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
       localStorage.setItem('olmera_theme', 'light');
     }
     setIsDarkMode(nextDark);
@@ -106,8 +108,6 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
     {
       name: 'Olmera Center for Health',
       city: 'Rajam',
-      address: 'Main Road, Near Bus Complex, Rajam, AP',
-      phone: '+91 70321 30919',
       beds: '150 Beds',
       icu: '24 ICU Beds Active',
       badge: 'Regional Care Center',
@@ -116,8 +116,6 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
     {
       name: 'Olmera Coastal Hospital',
       city: 'Visakhapatnam',
-      address: 'Health City, Arilova, Visakhapatnam, AP',
-      phone: '+91 891 2727272',
       beds: '350 Beds',
       icu: 'Level 1 Trauma Unit',
       badge: 'Tertiary Hub',
@@ -126,8 +124,6 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
     {
       name: 'Olmera Care Hospital',
       city: 'Srikakulam',
-      address: 'Day & Night Junction, Srikakulam, AP',
-      phone: '+91 8942 222333',
       beds: '200 Beds',
       icu: 'Emergency & Stroke Unit',
       badge: 'Regional Network Hub',
@@ -136,8 +132,6 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
     {
       name: 'Olmera Specialty Institute',
       city: 'Visakhapatnam',
-      address: 'Waltair Main Road, Visakhapatnam, AP',
-      phone: '+91 891 2555666',
       beds: '300 Beds',
       icu: 'Accredited Excellence',
       badge: 'Specialty Center',
@@ -149,19 +143,16 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
     {
       quote: "Scheduling my consultation in Vizag was completely calm and transparent. The digital prescription and diagnostic reports were available in my vault before I returned home to Rajam.",
       author: "Venkata Satyanarayana",
-      location: "Rajam, Andhra Pradesh",
-      role: "Patient"
+      role: "Verified Patient"
     },
     {
       quote: "When my father needed hospital admission in Srikakulam, Olmera's live bed availability tracker saved us critical hours. The interface is wonderfully quiet, minimal, and respectful.",
       author: "P. Radhika",
-      location: "Srikakulam, Andhra Pradesh",
       role: "Family Caregiver"
     },
     {
       quote: "The telehealth experience eliminated the exhausting commute to Visakhapatnam for our elderly relatives. The clarity of the video and the doctor's undivided attention were exemplary.",
       author: "K. Murali Krishna",
-      location: "Visakhapatnam, Andhra Pradesh",
       role: "Telehealth User"
     }
   ];
@@ -178,13 +169,16 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
               Emergency Rapid Response:
             </span>
             <a href="tel:108" className="underline font-bold text-white hover:text-[#CFE3DD]">
-              Dial 108
+              Dial 108 (24/7 Toll-Free)
             </a>
             <span className="hidden sm:inline text-[#CFE3DD]/50">|</span>
-            <span className="hidden sm:inline text-[#CFE3DD]">Olmera Careline:</span>
-            <a href="tel:+917032130919" className="hidden sm:inline font-semibold text-white hover:underline">
-              +91 70321 30919
-            </a>
+            <span className="hidden sm:inline text-[#CFE3DD]">Clinical Concierge:</span>
+            <button 
+              onClick={() => onOpenAuth('patient')} 
+              className="hidden sm:inline font-semibold text-white hover:underline text-xs"
+            >
+              Sign In to Patient Portal
+            </button>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-[#CFE3DD]">
@@ -211,13 +205,13 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
             <div className="card p-5 bg-[var(--color-surface)] border-[var(--color-line)] shadow-sm">
               <div className="flex items-center gap-3 mb-2 text-[var(--color-primary)]">
                 <Bed size={22} />
-                <h4 className="font-display font-semibold text-base text-[var(--color-ink)]">Ambulance GPS Dispatch</h4>
+                <h4 className="font-display font-semibold text-base text-[var(--color-ink)]">Emergency Trauma Dispatch</h4>
               </div>
               <p className="text-xs text-[var(--color-muted)] mb-4">
-                Rapid ICU paramedic team dispatched to your GPS location in Rajam, Vizag, or Srikakulam.
+                Rapid ICU paramedic team coordinated through accredited regional trauma triage centers.
               </p>
               <a href="tel:108" className="btn-primary w-full text-center py-2 text-xs flex items-center justify-center gap-2">
-                <Phone size={13} /> Call 108 Emergency
+                <Phone size={13} /> Call 108 Emergency Ambulance
               </a>
             </div>
 
@@ -257,7 +251,7 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
       )}
 
       {/* 2. PUBLIC HEADER & NAVIGATION */}
-      <header className="sticky top-0 z-40 bg-[var(--color-surface)]/90 backdrop-blur-md border-b border-[var(--color-line)] transition-colors">
+      <header className="sticky top-0 z-40 bg-[var(--color-surface)] backdrop-blur-md border-b border-[var(--color-line)] transition-colors">
         <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
           {/* Brand Wordmark */}
@@ -345,7 +339,10 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
                 Hospitals & Bed Status
               </a>
               <button 
-                onClick={() => { setMobileMenuOpen(false); onNavigateToView ? onNavigateToView('doctors') : onOpenAuth('patient'); }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onNavigateToView) { onNavigateToView('doctors'); } else { onOpenAuth('patient'); }
+                }}
                 className="p-2 text-left hover:bg-[var(--color-surface-subtle)] rounded-lg"
               >
                 Specialist Directory
@@ -354,13 +351,19 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
                 Care Architecture
               </a>
               <button 
-                onClick={() => { setMobileMenuOpen(false); onNavigateToView ? onNavigateToView('about-us') : onOpenAuth('patient'); }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onNavigateToView) { onNavigateToView('about-us'); } else { onOpenAuth('patient'); }
+                }}
                 className="p-2 text-left hover:bg-[var(--color-surface-subtle)] rounded-lg"
               >
                 About Olmera
               </button>
               <button 
-                onClick={() => { setMobileMenuOpen(false); onNavigateToView ? onNavigateToView('contact-us') : onOpenAuth('patient'); }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onNavigateToView) { onNavigateToView('contact-us'); } else { onOpenAuth('patient'); }
+                }}
                 className="p-2 text-left hover:bg-[var(--color-surface-subtle)] rounded-lg"
               >
                 Contact & Helplines
@@ -647,9 +650,9 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
                     <h3 className="font-display text-base text-[var(--color-ink)] leading-snug">
                       {hosp.name}
                     </h3>
-                    <p className="text-xs text-[var(--color-muted)] flex items-start gap-1 font-ui">
-                      <MapPin size={13} className="shrink-0 mt-0.5 text-[var(--color-muted)]" />
-                      <span>{hosp.address}</span>
+                    <p className="text-xs text-[var(--color-muted)] flex items-center gap-1.5 font-ui">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]"></span>
+                      <span>Accredited Regional Medical Center</span>
                     </p>
 
                     <div className="bg-[var(--color-surface-subtle)] p-2.5 rounded-xl space-y-1 text-xs font-ui">
@@ -813,7 +816,7 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
                   </div>
                   <div>
                     <h4 className="font-semibold text-xs text-[var(--color-ink)] font-ui">{t.author}</h4>
-                    <p className="text-[10px] text-[var(--color-muted)] font-ui">{t.location} • {t.role}</p>
+                    <p className="text-[10px] text-[var(--color-muted)] font-ui">{t.role} • Verified Clinical Care</p>
                   </div>
                 </div>
               </div>
@@ -867,10 +870,10 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
               <p className="text-xs text-[var(--color-muted)] leading-relaxed max-w-sm">
                 Olmera is an accredited healthcare and telemetry platform connecting clinical facilities across Rajam, Visakhapatnam, and Srikakulam, Andhra Pradesh.
               </p>
-              <div className="text-xs space-y-1 pt-1">
-                <p>Care Desk: <a href="tel:+917032130919" className="font-semibold text-[var(--color-ink)] hover:underline">+91 70321 30919</a></p>
-                <p>Emergency Ambulance: <a href="tel:108" className="font-semibold text-[var(--color-accent)] hover:underline">108</a></p>
-                <p>Email: <a href="mailto:care@olmera.health" className="hover:underline">care@olmera.health</a></p>
+              <div className="text-xs space-y-1.5 pt-1">
+                <p>Care Concierge: <span className="font-semibold text-[var(--color-ink)]">Available via Authenticated Portal</span></p>
+                <p>Emergency Ambulance: <a href="tel:108" className="font-semibold text-[var(--color-accent)] hover:underline">Dial 108 (24/7 Toll-Free)</a></p>
+                <p>Clinical Inquiries: <a href="mailto:care@olmera.health" className="hover:underline text-[var(--color-ink)]">care@olmera.health</a></p>
               </div>
             </div>
 

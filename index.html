@@ -26,10 +26,18 @@
         try {
           var savedTheme = localStorage.getItem('olmera_theme');
           var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
-            document.documentElement.classList.add('dark');
+          var isDark = savedTheme === 'dark' || (!savedTheme && systemDark);
+
+          document.documentElement.classList.toggle('dark', isDark);
+
+          var applyBodyTheme = function() {
+            if (document.body) document.body.classList.toggle('dark', isDark);
+          };
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', applyBodyTheme);
           } else {
-            document.documentElement.classList.remove('dark');
+            applyBodyTheme();
           }
         } catch (e) {}
       })();

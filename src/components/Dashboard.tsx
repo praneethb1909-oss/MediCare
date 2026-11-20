@@ -80,15 +80,37 @@ export function Dashboard({ onBookNew }: DashboardProps) {
   const loadMedicalReports = useCallback(async () => {
     if (!user) return;
     try {
-      const q = query(
-        collection(db, 'medical_reports'),
-        where('patient_id', '==', user.uid),
-        orderBy('uploaded_at', 'desc'),
-        limit(3)
-      );
-      const querySnapshot = await getDocs(q);
-      const reports = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMedicalReports(reports);
+      let reports: any[] = [];
+      try {
+        const q = query(
+          collection(db, 'medical_reports'),
+          where('patient_id', '==', user.uid),
+          limit(5)
+        );
+        const querySnapshot = await getDocs(q);
+        reports = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (err) {
+        console.warn('Firestore medical_reports query fallback:', err);
+      }
+
+      // Merge with persistent local cache
+      try {
+        const stored = localStorage.getItem('olmera_reports_cache');
+        if (stored) {
+          const cached = JSON.parse(stored);
+          cached.forEach((c: any) => {
+            if (!reports.some(r => r.id === c.id)) {
+              reports.unshift(c);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Local reports cache parse error:', e);
+      }
+
+      // Sort newest first
+      reports.sort((a, b) => new Date(b.uploaded_at || 0).getTime() - new Date(a.uploaded_at || 0).getTime());
+      setMedicalReports(reports.slice(0, 3));
     } catch (error) {
       console.error('Error loading medical reports:', error);
     }
@@ -105,20 +127,30 @@ export function Dashboard({ onBookNew }: DashboardProps) {
   const loadPatientProfile = useCallback(async () => {
     if (!user) return;
 
-    const fallbackName = user.displayName || (user.email ? user.email.split('@')[0] : 'Patient');
-    if (!patientName) {
-      setPatientName(fallbackName);
+    // Dynamically resolve name directly from authenticated credentials
+    const emailPrefix = user.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : '';
+    const cleanAuthName = (user.displayName && user.displayName !== 'Demo Patient' && user.displayName !== 'Patient') 
+      ? user.displayName 
+      : emailPrefix;
+
+    if (cleanAuthName) {
+      setPatientName(cleanAuthName);
     }
 
     try {
-      // 1. By UID from patients collection
-      const patientDoc = await getDoc(doc(db, 'patients', user.uid));
-      if (patientDoc.exists() && patientDoc.data().full_name) {
-        setPatientName(patientDoc.data().full_name);
-        return;
+      // 1. By UID from genuine authenticated patient profile
+      if (user.uid && !user.uid.startsWith('demo-')) {
+        const patientDoc = await getDoc(doc(db, 'patients', user.uid));
+        if (patientDoc.exists()) {
+          const docData = patientDoc.data();
+          if (docData.full_name && (!user.email || !docData.email || docData.email === user.email)) {
+            setPatientName(docData.full_name);
+            return;
+          }
+        }
       }
 
-      // 2. Query patients by email
+      // 2. Query patients by authenticated email
       if (user.email) {
         const byEmail = await getDocs(query(
           collection(db, 'patients'),
@@ -131,15 +163,15 @@ export function Dashboard({ onBookNew }: DashboardProps) {
         }
       }
 
-      // 3. Fallback to auth credentials
-      if (fallbackName) {
-        setPatientName(fallbackName);
+      // 3. Fallback to clean auth credential name
+      if (cleanAuthName) {
+        setPatientName(cleanAuthName);
       }
     } catch (error) {
       console.error('Error loading patient profile:', error);
-      if (fallbackName) setPatientName(fallbackName);
+      if (cleanAuthName) setPatientName(cleanAuthName);
     }
-  }, [user, patientName]);
+  }, [user]);
 
   const loadAppointments = useCallback(async () => {
     if (!user) {
@@ -354,7 +386,7 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
                 Verified Patient Portal
               </span>
               <span className="px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-xs font-mono text-[var(--color-mist)] border border-white/5">
-                UHID: OL-{(user?.uid || '8841').slice(0, 8).toUpperCase()}
+                UHID: OL-{((user?.uid && !user.uid.startsWith('demo-')) ? user.uid : (user?.displayName || user?.email?.split('@')[0] || '8841')).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase()}
               </span>
             </div>
 
@@ -442,7 +474,7 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
           </div>
           <div className="hidden sm:flex items-center gap-2">
             <Phone size={14} className="text-[var(--color-primary)]" />
-            <span>Careline: 7032130919</span>
+            <span>Emergency SOS: 108</span>
           </div>
         </div>
       </div>
@@ -493,11 +525,9 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
           </span>
         </button>
 
-        {/* WhatsApp Helpline */}
-        <a
-          href="https://wa.me/917032130919?text=Hello%20Olmera%20Support,%20I%20need%20assistance%20with%20my%20health%20records/appointment."
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* Concierge Care Support */}
+        <button
+          onClick={() => (window as any).setView('support')}
           className="card p-5 bg-[var(--color-surface)] border-[var(--color-line)] rounded-2xl text-left hover:border-[var(--color-primary)] transition-all group flex items-start justify-between shadow-sm"
         >
           <div className="space-y-2">
@@ -509,13 +539,13 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
               <p className="text-xs text-[var(--color-muted)] mt-0.5">Direct chat with care coordinators</p>
             </div>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary)] group-hover:translate-x-0.5 transition-transform">
-              Open WhatsApp →
+              Open Support →
             </span>
           </div>
           <span className="px-2 py-0.5 bg-[var(--color-surface-subtle)] text-[var(--color-muted)] border border-[var(--color-line)] text-[10px] font-semibold uppercase rounded-full">
             Online
           </span>
-        </a>
+        </button>
 
         {/* Digital Health Records */}
         <button
@@ -1197,10 +1227,11 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
                   <ChevronRight size={18} className="text-[var(--color-muted)]" />
                 </button>
 
-                <a
-                  href="https://wa.me/917032130919?text=EMERGENCY:%20I%20need%20immediate%20medical%20assistance."
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => {
+                    setShowEmergencyModal(false);
+                    (window as any).setView('support');
+                  }}
                   className="w-full p-4 bg-[var(--color-surface-subtle)] hover:border-[var(--color-primary)] border border-[var(--color-line)] rounded-2xl flex items-center justify-between transition-all"
                 >
                   <div className="flex items-center gap-3 text-left">
@@ -1209,11 +1240,11 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
                     </div>
                     <div>
                       <p className="font-semibold text-sm text-[var(--color-ink)]">Careline Coordinator</p>
-                      <p className="text-xs text-[var(--color-muted)]">Direct coordinator line: 7032130919</p>
+                      <p className="text-xs text-[var(--color-muted)]">Encrypted patient concierge channel</p>
                     </div>
                   </div>
                   <ChevronRight size={18} className="text-[var(--color-muted)]" />
-                </a>
+                </button>
               </div>
             )}
 

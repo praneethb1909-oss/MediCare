@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { App as CapApp } from '@capacitor/app';
@@ -31,6 +31,9 @@ import { AboutUs } from './components/AboutUs';
 import { ServicesPage } from './components/ServicesPage';
 import { LandingPage } from './components/LandingPage';
 import { MedicareWaveLoader } from './components/common/MedicareWaveLoader';
+import { HospitalAdminLogin } from './components/auth/HospitalAdminLogin';
+import { SessionTimeoutModal } from './components/auth/SessionTimeoutModal';
+import { sessionManager } from './services/auth/sessionManager';
 import { Activity } from 'lucide-react';
 
 type View = 
@@ -76,21 +79,26 @@ function PlaceholderView({ title }: { title: string }) {
 }
 
 function AppContent() {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role, loginAsDemo, signOut, signInHospitalAdmin } = useAuth();
   const [publicView, setPublicView] = useState<'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'>('landing');
   const [authRole, setAuthRole] = useState<'patient' | 'doctor' | 'admin'>('patient');
   const [viewState, setViewState] = useState<ViewState>({ 
     current: 'dashboard' 
   });
 
+  const currentViewRef = useRef(viewState.current);
+  useEffect(() => {
+    currentViewRef.current = viewState.current;
+  }, [viewState]);
+
   // Native Mobile Configuration
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       StatusBar.setStyle({ style: Style.Dark });
-      StatusBar.setBackgroundColor({ color: '#2563eb' });
+      StatusBar.setBackgroundColor({ color: '#0E4F4A' });
 
       const backListener = CapApp.addListener('backButton', () => {
-        if (['dashboard', 'doctor-portal', 'admin-portal'].includes(viewState.current)) {
+        if (['dashboard', 'doctor-portal', 'admin-portal'].includes(currentViewRef.current)) {
           CapApp.exitApp();
         } else {
           const homeView = role === 'doctor' ? 'doctor-portal' : role === 'admin' ? 'admin-portal' : 'dashboard';
@@ -102,7 +110,7 @@ function AppContent() {
         backListener.then(l => l.remove());
       };
     }
-  }, [viewState.current, role]);
+  }, [role]);
 
   // Handle Initial Role-Based Redirect
   useEffect(() => {
@@ -115,6 +123,10 @@ function AppContent() {
   const setView = useCallback((view: View) => {
     setViewState({ current: view });
   }, []);
+
+  const handleAdminLogout = useCallback(async () => {
+    await signOut();
+  }, [signOut]);
 
   // Expose setView globally for quick component access
   useEffect(() => {
@@ -154,10 +166,24 @@ function AppContent() {
   const isDevelopmentSkipLogin = false;
   if (!user && !isDevelopmentSkipLogin) {
     if (publicView === 'auth') {
+      if (authRole === 'admin') {
+        return (
+          <HospitalAdminLogin 
+            onSuccess={(adminProfile, sessionToken) => {
+              signInHospitalAdmin(adminProfile, sessionToken);
+              setPublicView('landing');
+              setViewState({ current: 'admin-portal' });
+            }}
+            onBackToPublic={() => setPublicView('landing')}
+          />
+        );
+      }
+
       return (
         <Auth 
           onBack={() => setPublicView('landing')} 
           initialRole={authRole} 
+          onSwitchToHospitalAdmin={() => setAuthRole('admin')}
         />
       );
     }
@@ -333,20 +359,25 @@ function AppContent() {
 
   console.log('App Rendering', { currentRole, viewState: viewState.current });
 
-  // AdminPortal has its own layout, so we only wrap Patient/Doctor (or Admin viewing shared views) in DashboardLayout
-  if (currentRole === 'admin' && viewState.current !== 'about-us' && viewState.current !== 'contact-us' && viewState.current !== 'services') {
-    return renderContent();
-  }
-
+  // SessionTimeoutModal is rendered for all authenticated admin users regardless of current view
   return (
-    <DashboardLayout 
-      currentView={viewState.current} 
-      setView={setView} 
-      role={currentRole as any}
-      user={currentUser}
-    >
-      {renderContent()}
-    </DashboardLayout>
+    <>
+      {currentRole === 'admin' && (
+        <SessionTimeoutModal onLogout={handleAdminLogout} />
+      )}
+      {currentRole === 'admin' && !['about-us', 'contact-us', 'services'].includes(viewState.current) ? (
+        renderContent()
+      ) : (
+        <DashboardLayout 
+          currentView={viewState.current} 
+          setView={setView} 
+          role={currentRole as any}
+          user={currentUser}
+        >
+          {renderContent()}
+        </DashboardLayout>
+      )}
+    </>
   );
 }
 

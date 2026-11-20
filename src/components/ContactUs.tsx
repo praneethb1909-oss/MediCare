@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, MapPin, MessageCircle, Send, Globe, Instagram, Twitter, Linkedin, Facebook } from 'lucide-react';
+import { Mail, ShieldCheck, Activity, MessageCircle, Send, Globe, Instagram, Twitter, Linkedin, Facebook } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
 
 export function ContactUs() {
@@ -25,35 +25,37 @@ export function ContactUs() {
           </div>
 
           <div className="space-y-4">
-            <a href="mailto:praneethb1909@gmail.com" className="flex items-center gap-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm hover:border-blue-200 transition-all group">
+            <a href="mailto:care@olmera.health" className="flex items-center gap-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm hover:border-blue-200 transition-all group">
               <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
                 <Mail size={24} />
               </div>
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email Support</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">praneethb1909@gmail.com</p>
-              </div>
-            </a>
-
-            <a href="tel:+917032130919" className="flex items-center gap-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm hover:border-blue-200 transition-all group">
-              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <Phone size={24} />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clinical Hotline</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">+91 7032130919</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">care@olmera.health</p>
               </div>
             </a>
 
             <div className="flex items-center gap-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600">
-                <MapPin size={24} />
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600">
+                <ShieldCheck size={24} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Regional Node</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Rajam, Andhra Pradesh, IN</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clinical Privacy</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Authenticated Care Channel</p>
+                <p className="text-xs text-slate-400 mt-0.5">Direct phone lines are restricted to registered patients within the secure portal.</p>
               </div>
             </div>
+
+            <a href="tel:108" className="flex items-center gap-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm hover:border-rose-200 transition-all group">
+              <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
+                <Activity size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Emergency Assistance</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Dial 108 Emergency Ambulance</p>
+                <p className="text-xs text-slate-400 mt-0.5">24/7 Toll-Free Immediate Medical Response</p>
+              </div>
+            </a>
           </div>
 
           {/* Social Media Placeholders */}

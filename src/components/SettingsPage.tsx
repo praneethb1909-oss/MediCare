@@ -379,7 +379,7 @@ export function SettingsPage() {
                       <Lock size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest text-[10px]">Update Passcode</h4>
+                      <h4 className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-[10px]">Update Passcode</h4>
                       <p className="text-xs text-slate-500 font-medium">Ensure your passcode is complex and rotating regularly.</p>
                     </div>
                   </div>
@@ -399,7 +399,7 @@ export function SettingsPage() {
                 </div>
 
                 <div className="p-6 border border-red-100 dark:border-red-900/20 bg-red-50/20 dark:bg-red-900/5 rounded-3xl">
-                  <h4 className="text-sm font-black text-red-600 uppercase tracking-widest text-[10px] mb-2">Critical Actions</h4>
+                  <h4 className="font-black text-red-600 uppercase tracking-widest text-[10px] mb-2">Critical Actions</h4>
                   <p className="text-xs text-slate-500 font-medium mb-4">Requesting vault decommissioning will purge all local data access.</p>
                   <button className="text-red-600 text-[10px] font-black uppercase tracking-widest hover:underline">
                     Deactivate System Access

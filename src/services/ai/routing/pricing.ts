@@ -5,7 +5,7 @@
  */
 
 export interface ModelPricingTier {
-  provider: 'gemini' | 'anthropic' | 'openai' | 'custom';
+  provider: 'gemini' | 'anthropic' | 'openai' | 'nvidia' | 'custom';
   modelId: string;
   name: string;
   costPer1kPromptTokens: number;      // In USD
@@ -16,6 +16,28 @@ export interface ModelPricingTier {
 }
 
 export const KNOWN_MODEL_BENCHMARKS: Record<string, ModelPricingTier> = {
+  // NVIDIA NIM Models
+  'mistralai/mistral-large-4-1t-a52b': {
+    provider: 'nvidia',
+    modelId: 'mistralai/mistral-large-4-1t-a52b',
+    name: 'Mistral Large (NVIDIA NIM)',
+    costPer1kPromptTokens: 0.002,
+    costPer1kCompletionTokens: 0.006,
+    defaultRpm: 40,
+    defaultTpm: 100000,
+    defaultRpd: 5000
+  },
+  'NVIDIABuild-Autogen-42': {
+    provider: 'nvidia',
+    modelId: 'NVIDIABuild-Autogen-42',
+    name: 'NVIDIA Build Autogen 42',
+    costPer1kPromptTokens: 0.0008,
+    costPer1kCompletionTokens: 0.0025,
+    defaultRpm: 40,
+    defaultTpm: 100000,
+    defaultRpd: 5000
+  },
+
   // Google Gemini Models
   'gemini-1.5-flash': {
     provider: 'gemini',

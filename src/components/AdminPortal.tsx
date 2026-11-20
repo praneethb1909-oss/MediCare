@@ -13,11 +13,20 @@ import {
   ChevronRight, Download, Upload, Image as ImageIcon,
   AlertCircle, Briefcase, Activity, ShieldCheck, PieChart,
   CreditCard, ExternalLink, MoreVertical, Building,
-  Mail, User, XCircle, Cpu, Eye
+  Mail, User, XCircle, Cpu, Eye, ShieldAlert, Lock, Unlock,
+  RefreshCw, Play, CheckCircle2, Clock, Database, Copy, CheckCheck
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
+import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { auditLogger, SecurityAuditEntry } from '../services/auth/auditLogger';
+import { hospitalIdp, HospitalRecord } from '../services/auth/hospitalIdp';
+import { sessionManager, HospitalAdminSession } from '../services/auth/sessionManager';
+import { runHospitalAuthValidationSuite, HospitalAuthTestSuiteReport } from '../services/auth/validateHospitalAuth';
+import { HOSPITAL_ROLES, hasHospitalPermission } from '../services/auth/rbac';
+import { processClinicalFileUpload, resolveClinicalDocumentUrl } from '../services/storage/clinicalStorage';
+import { maskEmail } from '../utils/masking';
 
-type AdminTab = 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'hospitals' | 'reports' | 'files' | 'payments' | 'notifications';
+type AdminTab = 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'hospitals' | 'reports' | 'files' | 'payments' | 'notifications' | 'audit';
 
 export function AdminPortal() {
   const { user } = useAuth();
@@ -50,6 +59,24 @@ export function AdminPortal() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  // Hospital Authentication & Security Audit States
+  const [activeSession, setActiveSession] = useState<HospitalAdminSession | null>(() => sessionManager.getActiveSession());
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(() => {
+    const s = sessionManager.getActiveSession();
+    return s ? Math.max(0, Math.floor((s.expiresAt - Date.now()) / 1000)) : 900;
+  });
+  const [auditLogs, setAuditLogs] = useState<SecurityAuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFilterStatus, setAuditFilterStatus] = useState<string>('ALL');
+  const [auditFilterEvent, setAuditFilterEvent] = useState<string>('ALL');
+  const [auditSearchTerm, setAuditSearchTerm] = useState<string>('');
+  const [testSuiteReport, setTestSuiteReport] = useState<HospitalAuthTestSuiteReport | null>(null);
+  const [isRunningTests, setIsRunningTests] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [unlockTargetId, setUnlockTargetId] = useState('');
+  const [unlockStatus, setUnlockStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -108,27 +135,23 @@ export function AdminPortal() {
             uploaded_at: data.uploaded_at
           };
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Firestore files fetch fallback:', e);
+      }
 
       // Also merge with persistent localStorage
       let cached: any[] = [];
       try {
         const stored = localStorage.getItem('olmera_admin_files');
         if (stored) cached = JSON.parse(stored);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Cached admin files read warning:', e);
+      }
 
       const all = [...cached, ...firestoreFiles, ...remoteFiles];
       const unique = all.filter((f, idx, arr) => arr.findIndex(x => x.name === f.name && x.url === f.url) === idx);
 
-      if (unique.length === 0) {
-        setFiles([
-          { name: 'Hospital_Safety_Audit_Q4.pdf', url: 'https://example.com/safety-audit.pdf', uploaded_at: '2026-11-10' },
-          { name: 'Cardiology_Telemetry_Protocol.pdf', url: 'https://example.com/telemetry.pdf', uploaded_at: '2026-11-04' },
-          { name: 'State_Clinical_Accreditation.pdf', url: 'https://example.com/accreditation.pdf', uploaded_at: '2026-10-22' }
-        ]);
-      } else {
-        setFiles(unique);
-      }
+      setFiles(unique);
     } catch (err) {
       console.error('File load error:', err);
     }
@@ -144,11 +167,110 @@ export function AdminPortal() {
     }
   };
 
+  const loadAuditData = useCallback(async () => {
+    try {
+      setAuditLoading(true);
+      const logs = await auditLogger.getRecentLogs(100);
+      setAuditLogs(logs);
+    } catch (err) {
+      console.error('Audit log fetch error:', err);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const s = sessionManager.getActiveSession();
+      setActiveSession(s);
+      if (s) {
+        const diff = Math.max(0, Math.floor((s.expiresAt - Date.now()) / 1000));
+        setRemainingSeconds(diff);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     loadDashboardData();
     if (activeTab === 'files') loadFiles();
     if (activeTab === 'payments') loadPayments();
-  }, [loadDashboardData, activeTab]);
+    if (activeTab === 'audit') loadAuditData();
+  }, [loadDashboardData, loadAuditData, activeTab]);
+
+  const formatRemaining = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${mins}m ${s < 10 ? '0' : ''}${s}s`;
+  };
+
+  const handleRunSecurityTests = async () => {
+    try {
+      setIsRunningTests(true);
+      setShowTestModal(true);
+      const report = await runHospitalAuthValidationSuite();
+      setTestSuiteReport(report);
+      await loadAuditData();
+    } catch (err) {
+      console.error('Failed to run security tests:', err);
+    } finally {
+      setIsRunningTests(false);
+    }
+  };
+
+  const handleUnlockAccount = async (targetId: string) => {
+    if (!targetId.trim()) return;
+    try {
+      const staff = activeSession?.user.staffId || 'ADM-ROOT';
+      const ok = await hospitalIdp.unlockAccount(targetId.trim(), staff);
+      if (ok) {
+        setUnlockStatus({ success: true, message: `Staff account "${targetId.trim()}" successfully unlocked.` });
+        setUnlockTargetId('');
+        await loadAuditData();
+      } else {
+        setUnlockStatus({ success: false, message: `Account "${targetId.trim()}" was not found or is already active.` });
+      }
+    } catch (err: any) {
+      setUnlockStatus({ success: false, message: err.message || 'Unlock operation failed.' });
+    }
+  };
+
+  const handleExportAuditLogs = (format: 'csv' | 'json') => {
+    if (auditLogs.length === 0) return;
+    if (format === 'json') {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(auditLogs, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `olmera_security_audit_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } else {
+      const headers = ['Timestamp', 'Event Type', 'Status', 'Hospital ID', 'Hospital Name', 'Staff ID', 'Email', 'Role', 'Details', 'Checksum (SHA-256)', 'Client IP'];
+      const rows = auditLogs.map(l => [
+        `"${l.timestamp}"`,
+        `"${l.eventType}"`,
+        `"${l.status}"`,
+        `"${l.hospitalId || ''}"`,
+        `"${l.hospitalName || ''}"`,
+        `"${l.staffId || ''}"`,
+        `"${l.email ? maskEmail(l.email) : ''}"`,
+        `"${l.role || ''}"`,
+        `"${(l.details || '').replace(/"/g, '""')}"`,
+        `"${l.checksum}"`,
+        `"${l.ipAddress}"`
+      ]);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `olmera_security_audit_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setSuccess(`Security audit trail exported as ${format.toUpperCase()}.`);
+  };
 
   const handleDeleteDoctor = async (id: string) => {
     if (!confirm('Decommission this medical practitioner?')) return;
@@ -166,60 +288,28 @@ export function AdminPortal() {
     if (!file) return;
     try {
       setUploading(true);
+      setError('');
 
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = reader.result as string;
-        const newFile = {
-          name: file.name,
-          url: dataUrl,
-          size: file.size,
-          uploaded_at: new Date().toISOString()
-        };
+      const storedFile = await processClinicalFileUpload(file, {
+        userId: user?.uid || 'admin-portal',
+        userName: user?.displayName || 'Hospital Admin',
+        title: file.name,
+        reportType: 'Administrative Document'
+      });
 
-        // Immediately update state so file is rendered on screen
-        setFiles(prev => [newFile, ...prev]);
-
-        // Save to localStorage
-        try {
-          const stored = localStorage.getItem('olmera_admin_files');
-          const list = stored ? JSON.parse(stored) : [];
-          localStorage.setItem('olmera_admin_files', JSON.stringify([newFile, ...list.slice(0, 30)]));
-        } catch (err) {}
-
-        // Save to Firestore
-        try {
-          await addDoc(collection(db, 'medical_reports'), {
-            title: file.name,
-            file_name: file.name,
-            report_type: 'Administrative Document',
-            file_url: dataUrl,
-            uploaded_at: new Date().toISOString(),
-            uploader_role: 'admin'
-          });
-        } catch (err) {}
-
-        // Cloud storage background attempt
-        if (isFirebaseConfigured) {
-          try {
-            const fileRef = ref(storage, `reports/${Date.now()}_${file.name}`);
-            uploadBytes(fileRef, file).catch(() => {});
-          } catch (err) {}
-        }
-
-        setSuccess(`Document "${file.name}" uploaded and archived.`);
-        setUploading(false);
+      const newFile = {
+        name: storedFile.name,
+        url: storedFile.url,
+        size: storedFile.size,
+        uploaded_at: storedFile.uploaded_at
       };
 
-      reader.onerror = () => {
-        setError('Failed to read document file.');
-        setUploading(false);
-      };
-
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.warn('Archive upload error:', err);
-      setError('Failed to upload file.');
+      setFiles(prev => [newFile, ...prev]);
+      setSuccess(`Document "${file.name}" uploaded and archived.`);
+    } catch (err: any) {
+      console.error('File archive error:', err);
+      setError(err?.message || 'Failed to archive document.');
+    } finally {
       setUploading(false);
     }
   };
@@ -360,7 +450,7 @@ export function AdminPortal() {
                 <Building size={14} /> {dr.hospital_name || 'Apollo Vizag'}
               </div>
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                <Mail size={14} /> {dr.email}
+                <Mail size={14} /> {maskEmail(dr.email)}
               </div>
             </div>
           </div>
@@ -384,7 +474,7 @@ export function AdminPortal() {
               </div>
               <div>
                 <h3 className="font-black text-slate-900 dark:text-white">{p.full_name}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.email}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{maskEmail(p.email)}</p>
               </div>
             </div>
             <div className="flex justify-between items-center pt-4 border-t border-slate-50">
@@ -545,6 +635,17 @@ export function AdminPortal() {
     </div>
   );
 
+  const handleOpenPreview = async (file: any) => {
+    let resolvedUrl = file.url;
+    try {
+      const url = await resolveClinicalDocumentUrl(file.id || file.name, file.url);
+      if (url) resolvedUrl = url;
+    } catch (e) {
+      console.warn('Preview resolution warning:', e);
+    }
+    setPreviewFile({ name: file.name, url: resolvedUrl });
+  };
+
   const renderFiles = () => (
     <div className="space-y-8 animate-fadeIn">
       <div className="flex items-center justify-between">
@@ -570,7 +671,7 @@ export function AdminPortal() {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Medical Record</p>
             <div className="flex gap-2">
               <button 
-                onClick={() => setPreviewFile({ name: file.name, url: file.url })} 
+                onClick={() => handleOpenPreview(file)} 
                 className="btn-primary py-2 px-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5"
                 title="View document"
               >
@@ -585,14 +686,18 @@ export function AdminPortal() {
                     if (file.fullPath) {
                       await deleteObject(ref(storage, file.fullPath)).catch(() => {});
                     }
-                  } catch (e) {}
+                  } catch (e) {
+                    console.warn('Storage deletion warning:', e);
+                  }
                   try {
                     const stored = localStorage.getItem('olmera_admin_files');
                     if (stored) {
                       const list = JSON.parse(stored);
                       localStorage.setItem('olmera_admin_files', JSON.stringify(list.filter((x: any) => x.name !== file.name)));
                     }
-                  } catch (e) {}
+                  } catch (e) {
+                    console.warn('File local cache removal warning:', e);
+                  }
                   setFiles(prev => prev.filter(x => x.name !== file.name));
                 }
               }} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
@@ -658,6 +763,444 @@ export function AdminPortal() {
     </div>
   );
 
+  const renderAudit = () => {
+    const filteredLogs = auditLogs.filter(log => {
+      const matchesStatus = auditFilterStatus === 'ALL' || log.status === auditFilterStatus;
+      const matchesEvent = auditFilterEvent === 'ALL' || log.eventType === auditFilterEvent;
+      const query = auditSearchTerm.toLowerCase();
+      const matchesSearch = !query || 
+        log.details?.toLowerCase().includes(query) ||
+        log.staffId?.toLowerCase().includes(query) ||
+        log.hospitalName?.toLowerCase().includes(query) ||
+        log.hospitalId?.toLowerCase().includes(query) ||
+        log.checksum?.toLowerCase().includes(query) ||
+        log.ipAddress?.toLowerCase().includes(query);
+      return matchesStatus && matchesEvent && matchesSearch;
+    });
+
+    const successCount = auditLogs.filter(l => l.status === 'success').length;
+    const failureCount = auditLogs.filter(l => l.status === 'failure').length;
+    const lockedCount = auditLogs.filter(l => l.status === 'blocked').length;
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[2rem] shadow-sm">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                HIPAA & DISHA Accredited Authentication Active
+              </span>
+              <span className="text-xs text-[var(--color-muted)] font-mono">SHA-256 Tamper-Evident</span>
+            </div>
+            <h1 className="text-3xl font-display text-[var(--color-ink)] tracking-tight">Hospital Security & Audit Center</h1>
+            <p className="text-sm text-[var(--color-muted)] mt-1 max-w-2xl">
+              Real-time audit telemetry, multi-hospital IdP isolation, 15-minute HIPAA session lifecycle, and cryptographic verification logs.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => handleExportAuditLogs('csv')}
+              className="btn-outline px-4 py-2.5 text-xs font-semibold flex items-center gap-2 rounded-xl"
+              title="Export as CSV"
+            >
+              <Download size={14} />
+              Export CSV
+            </button>
+            <button
+              onClick={() => handleExportAuditLogs('json')}
+              className="btn-outline px-4 py-2.5 text-xs font-semibold flex items-center gap-2 rounded-xl"
+              title="Export as JSON"
+            >
+              <Download size={14} />
+              Export JSON
+            </button>
+            <button
+              onClick={handleRunSecurityTests}
+              disabled={isRunningTests}
+              className="btn-accent px-5 py-2.5 text-xs font-bold flex items-center gap-2 rounded-xl shadow-md disabled:opacity-50"
+            >
+              {isRunningTests ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={15} />}
+              {isRunningTests ? 'Running Suite...' : 'Run Security Suite'}
+            </button>
+          </div>
+        </div>
+
+        {/* Security Telemetry Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.5rem] shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Total Audits</span>
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center">
+                <Database size={18} />
+              </div>
+            </div>
+            <h3 className="text-3xl font-display text-[var(--color-ink)]">{auditLogs.length}</h3>
+            <p className="text-xs text-[var(--color-muted)] mt-2 flex items-center gap-1 font-mono">
+              <ShieldCheck size={12} className="text-emerald-500" /> Tamper-evident ledger
+            </p>
+          </div>
+
+          <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.5rem] shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Authorized Logins</span>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 size={18} />
+              </div>
+            </div>
+            <h3 className="text-3xl font-display text-emerald-600 dark:text-emerald-400">{successCount}</h3>
+            <p className="text-xs text-[var(--color-muted)] mt-2">
+              Verified clinical hospital staff
+            </p>
+          </div>
+
+          <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.5rem] shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Blocked / Denied</span>
+              <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center">
+                <ShieldAlert size={18} />
+              </div>
+            </div>
+            <h3 className="text-3xl font-display text-rose-600 dark:text-rose-400">{failureCount + lockedCount}</h3>
+            <p className="text-xs text-[var(--color-muted)] mt-2">
+              {lockedCount} lockout(s) triggered
+            </p>
+          </div>
+
+          <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.5rem] shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">HIPAA Idle Timeout</span>
+              <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
+                <Clock size={18} />
+              </div>
+            </div>
+            <h3 className="text-3xl font-mono font-semibold text-[var(--color-ink)] tracking-tight">{formatRemaining(remainingSeconds)}</h3>
+            <p className="text-xs text-[var(--color-muted)] mt-2 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 15-min auto-logout active
+            </p>
+          </div>
+        </div>
+
+        {/* Current Active Hospital Staff Session & Emergency Unlock Station */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Active Hospital Session Details */}
+          <div className="lg:col-span-2 p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.75rem] shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-display text-[var(--color-ink)] flex items-center gap-2">
+                <Building size={18} className="text-[var(--color-primary)]" />
+                Active Hospital Facility Binding
+              </h3>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-[var(--color-mist)] text-[var(--color-primary)] font-semibold">
+                Facility Isolation Enforced
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-xl border border-[var(--color-line)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--color-muted)]">Hospital Network</span>
+                <p className="font-semibold text-sm text-[var(--color-ink)] mt-0.5 truncate">
+                  {activeSession?.user.hospitalName || 'Olmera Healthcare Network'}
+                </p>
+                <p className="text-[10px] text-[var(--color-muted)] font-mono mt-0.5">ID: {activeSession?.user.hospitalId || 'OL-NET-01'}</p>
+              </div>
+
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-xl border border-[var(--color-line)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--color-muted)]">Clinical Staff Profile</span>
+                <p className="font-semibold text-sm text-[var(--color-ink)] mt-0.5 truncate">
+                  {activeSession?.user.fullName || user?.displayName || 'Administrator'}
+                </p>
+                <p className="text-[10px] text-[var(--color-muted)] font-mono mt-0.5">Staff ID: {activeSession?.user.staffId || 'ADM-ROOT'}</p>
+              </div>
+
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-xl border border-[var(--color-line)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--color-muted)]">Enforced Role & Scope</span>
+                <p className="font-semibold text-sm text-[var(--color-primary)] mt-0.5 capitalize truncate">
+                  {(activeSession?.user.role || 'super_admin').replace(/_/g, ' ')}
+                </p>
+                <p className="text-[10px] text-[var(--color-muted)] mt-0.5">{activeSession?.user.department || 'Administration'}</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
+              <ShieldCheck size={16} className="shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+              <span>
+                <strong>Zero Trust Boundary:</strong> Staff credentials from other healthcare institutions cannot access this facility's records or administrative consoles without regional administrative delegations.
+              </span>
+            </div>
+          </div>
+
+          {/* Account Lockout Relief Station */}
+          <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.75rem] shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
+                  <Lock size={16} />
+                </div>
+                <h3 className="text-base font-display text-[var(--color-ink)]">Staff Account Unlock</h3>
+              </div>
+              <p className="text-xs text-[var(--color-muted)] mb-4">
+                Hospital staff accounts are automatically locked for 15 minutes after 5 consecutive failed authentication attempts.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-bold text-[var(--color-muted)] uppercase tracking-wider block mb-1">
+                    Staff ID or Hospital Email
+                  </label>
+                  <input
+                    type="text"
+                    value={unlockTargetId}
+                    onChange={(e) => setUnlockTargetId(e.target.value)}
+                    placeholder="e.g. OCH-ADM-01 or vami.admin@olmera.in"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-subtle)] text-xs text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-primary)] font-mono"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleUnlockAccount(unlockTargetId)}
+                  disabled={!unlockTargetId.trim()}
+                  className="w-full btn-primary py-2.5 text-xs font-semibold flex items-center justify-center gap-2 rounded-xl disabled:opacity-40"
+                >
+                  <Unlock size={14} />
+                  Clear Lockout Counter
+                </button>
+              </div>
+            </div>
+
+            {unlockStatus && (
+              <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${unlockStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                {unlockStatus.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+                <span>{unlockStatus.message}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="p-6 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-[1.75rem] shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
+              <input
+                type="text"
+                value={auditSearchTerm}
+                onChange={(e) => setAuditSearchTerm(e.target.value)}
+                placeholder="Search audit trail by Staff ID, Hospital, Details, IP, or Checksum..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-subtle)] text-xs text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-primary)]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-[var(--color-muted)] uppercase tracking-wider flex items-center gap-1">
+                <Filter size={13} /> Status:
+              </span>
+              {(['ALL', 'success', 'failure', 'blocked'] as const).map(status => (
+                <button
+                  key={status}
+                  onClick={() => setAuditFilterStatus(status)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    auditFilterStatus === status
+                      ? 'bg-[var(--color-primary)] text-white shadow-sm'
+                      : 'bg-[var(--color-surface-subtle)] text-[var(--color-muted)] hover:text-[var(--color-ink)]'
+                  }`}
+                >
+                  {status === 'ALL' ? 'All' : status === 'blocked' ? 'Locked' : status.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Audit Trail Table */}
+          <div className="overflow-x-auto rounded-xl border border-[var(--color-line)]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[var(--color-surface-subtle)] border-b border-[var(--color-line)] text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Event & Status</th>
+                  <th className="py-3 px-4">Hospital / Department</th>
+                  <th className="py-3 px-4">Staff ID / Account</th>
+                  <th className="py-3 px-4">Details</th>
+                  <th className="py-3 px-4">SHA-256 Checksum</th>
+                  <th className="py-3 px-4 text-right">IP / Device</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-line)] text-xs">
+                {auditLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-[var(--color-muted)]">
+                      <MedicareWaveLoader variant="inline" size="sm" text="Verifying and retrieving clinical audit ledger..." />
+                    </td>
+                  </tr>
+                ) : filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-[var(--color-muted)]">
+                      <ShieldCheck size={28} className="mx-auto mb-2 opacity-40" />
+                      No security audit events match the current filter criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLogs.map((log) => {
+                    const isSuccess = log.status === 'success';
+                    const isLocked = log.status === 'blocked';
+                    const isDenied = log.status === 'failure';
+
+                    return (
+                      <tr key={log.id} className="hover:bg-[var(--color-surface-subtle)]/60 transition-colors">
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-[var(--color-muted)] whitespace-nowrap">
+                          {new Date(log.timestamp).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide ${
+                            isSuccess
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                              : isLocked
+                              ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              isSuccess ? 'bg-emerald-500' : isLocked ? 'bg-amber-500' : 'bg-rose-500'
+                            }`} />
+                            {log.eventType.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <p className="font-semibold text-[var(--color-ink)] truncate max-w-[160px]">{log.hospitalName || 'Network Global'}</p>
+                          <p className="text-[10px] text-[var(--color-muted)] font-mono">{log.hospitalId || 'ALL'}</p>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <p className="font-mono font-bold text-[var(--color-primary)]">{log.staffId || 'ANONYMOUS'}</p>
+                          {log.email && <p className="text-[10px] text-[var(--color-muted)] truncate max-w-[140px]">{maskEmail(log.email)}</p>}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-[var(--color-ink)] max-w-xs">
+                          <p className="line-clamp-2">{log.details}</p>
+                        </td>
+
+                        <td className="py-3.5 px-4 font-mono text-[11px] whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(log.checksum);
+                              setCopiedHash(log.id);
+                              setTimeout(() => setCopiedHash(null), 2000);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[var(--color-surface-subtle)] hover:bg-[var(--color-line)] text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                            title={`Full Checksum: ${log.checksum}\nClick to copy`}
+                          >
+                            <span>{log.checksum.substring(0, 10)}...</span>
+                            {copiedHash === log.id ? <CheckCheck size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                          </button>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right font-mono text-[11px] text-[var(--color-muted)] whitespace-nowrap">
+                          {log.ipAddress || '127.0.0.1'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Security Test Suite Modal */}
+        {showTestModal && testSuiteReport && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-line)] w-full max-w-3xl max-h-[90vh] rounded-[2rem] overflow-hidden flex flex-col shadow-2xl">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-[var(--color-line)] flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      testSuiteReport.allPassed 
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}>
+                      {testSuiteReport.allPassed ? 'ALL TESTS PASSED (100%)' : 'TESTS FAILED'}
+                    </span>
+                    <span className="text-xs text-[var(--color-muted)] font-mono">
+                      {testSuiteReport.passedTests}/{testSuiteReport.totalTests} Passed
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-display text-[var(--color-ink)] mt-1">Hospital Authentication Security Suite</h3>
+                </div>
+
+                <button
+                  onClick={() => setShowTestModal(false)}
+                  className="p-2 hover:bg-[var(--color-surface-subtle)] rounded-xl text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body: Test Cases */}
+              <div className="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-3">
+                {testSuiteReport.results.map((test, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      test.passed 
+                        ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/40' 
+                        : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-800/40'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                          test.passed ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                        }`}>
+                          {test.passed ? <Check size={16} /> : <X size={16} />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-[var(--color-ink)]">{test.name}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--color-surface-subtle)] text-[var(--color-muted)] font-semibold">
+                              {test.category}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[var(--color-ink)] font-mono mt-2 bg-white/70 dark:bg-black/20 p-2.5 rounded-xl border border-[var(--color-line)]">
+                            {test.details}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-[var(--color-muted)] shrink-0">
+                        {test.durationMs}ms
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-5 border-t border-[var(--color-line)] bg-[var(--color-surface-subtle)]/50 flex items-center justify-between">
+                <p className="text-xs text-[var(--color-muted)]">
+                  Cryptographic verification verified at {new Date(testSuiteReport.timestamp).toLocaleTimeString()}
+                </p>
+                <button
+                  onClick={() => setShowTestModal(false)}
+                  className="btn-primary px-5 py-2 text-xs font-semibold rounded-xl"
+                >
+                  Close Suite Results
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 dark:bg-slate-950 relative">
       <MedicalBackground />
@@ -680,7 +1223,8 @@ export function AdminPortal() {
             { id: 'hospitals', label: 'Infrastructure', icon: Home },
             { id: 'files', label: 'Clinical Vault', icon: FileText },
             { id: 'payments', label: 'Revenue Ops', icon: CreditCard },
-            { id: 'notifications', label: 'Broadcasts', icon: Bell }
+            { id: 'notifications', label: 'Broadcasts', icon: Bell },
+            { id: 'audit', label: 'Security & Audit', icon: ShieldCheck }
           ].map((item) => (
             <button
               key={item.id}
@@ -697,16 +1241,40 @@ export function AdminPortal() {
           ))}
         </nav>
 
-        <div className="mt-auto pt-8 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-            <div className="w-10 h-10 bg-[var(--color-primary)] text-white rounded-xl flex items-center justify-center font-bold text-sm">
-              {(user?.displayName?.[0] || user?.email?.[0] || 'A').toUpperCase()}
+        <div className="mt-auto pt-6 border-t border-[var(--color-line)] space-y-3">
+          {/* Active Hospital Session Telemetry */}
+          <div className="p-3 bg-[var(--color-surface-subtle)] rounded-xl border border-[var(--color-line)] space-y-2">
+            <div className="flex items-center justify-between text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                HIPAA Session
+              </span>
+              <span className="font-mono text-[var(--color-ink)] flex items-center gap-1">
+                <Clock size={11} />
+                {formatRemaining(remainingSeconds)}
+              </span>
             </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-black text-slate-900 dark:text-white truncate">
-                {user?.displayName || user?.email?.split('@')[0] || 'Administrator'}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[10px] uppercase font-bold text-[var(--color-muted)]">Facility</span>
+              <span className="font-semibold text-[var(--color-ink)] truncate max-w-[130px]">{activeSession?.user.hospitalName || 'Network HQ'}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[10px] uppercase font-bold text-[var(--color-muted)]">Staff ID</span>
+              <span className="font-mono text-[11px] font-bold text-[var(--color-primary)]">{activeSession?.user.staffId || 'ADM-ROOT'}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-xl border border-[var(--color-line)]">
+            <div className="w-10 h-10 bg-[var(--color-primary)] text-white rounded-xl flex items-center justify-center font-bold text-sm shrink-0">
+              {(activeSession?.user.fullName?.[0] || user?.displayName?.[0] || user?.email?.[0] || 'A').toUpperCase()}
+            </div>
+            <div className="overflow-hidden min-w-0 flex-1">
+              <p className="text-xs font-bold text-[var(--color-ink)] truncate">
+                {activeSession?.user.fullName || user?.displayName || user?.email?.split('@')[0] || 'Administrator'}
               </p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Root Access</p>
+              <p className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider truncate">
+                {activeSession?.user.role?.replace(/_/g, ' ') || 'Hospital Admin'}
+              </p>
             </div>
           </div>
         </div>
@@ -714,17 +1282,30 @@ export function AdminPortal() {
 
       {/* Main Content */}
       <main className="flex-1 p-8 lg:p-12 relative z-10 overflow-y-auto max-h-screen custom-scrollbar">
-        {activeTab === 'dashboard' && renderDashboard()}
-        {activeTab === 'doctors' && renderDoctors()}
-        {activeTab === 'patients' && renderPatients()}
-        {activeTab === 'appointments' && renderAppointments()}
-        {activeTab === 'hospitals' && renderHospitals()}
-        {activeTab === 'files' && renderFiles()}
-        {activeTab === 'payments' && renderPayments()}
-        {activeTab === 'notifications' && renderNotifications()}
+        {loading && activeTab === 'dashboard' ? (
+          <div className="py-24 flex items-center justify-center">
+            <MedicareWaveLoader 
+              variant="card" 
+              text="Synchronizing Clinical Command Center..." 
+              subtitle="Aggregating hospital beds, doctor rosters, telemetry, and consultation records" 
+            />
+          </div>
+        ) : (
+          <>
+            {activeTab === 'dashboard' && renderDashboard()}
+            {activeTab === 'doctors' && renderDoctors()}
+            {activeTab === 'patients' && renderPatients()}
+            {activeTab === 'appointments' && renderAppointments()}
+            {activeTab === 'hospitals' && renderHospitals()}
+            {activeTab === 'files' && renderFiles()}
+            {activeTab === 'payments' && renderPayments()}
+            {activeTab === 'notifications' && renderNotifications()}
+            {activeTab === 'audit' && renderAudit()}
+          </>
+        )}
         
         {/* Fallback for other tabs */}
-        {!['dashboard', 'doctors', 'patients', 'appointments', 'hospitals', 'files', 'payments', 'notifications'].includes(activeTab) && (
+        {!['dashboard', 'doctors', 'patients', 'appointments', 'hospitals', 'files', 'payments', 'notifications', 'audit'].includes(activeTab) && (
           <div className="card p-20 text-center bg-white/50 backdrop-blur-md">
             <div className="bg-blue-50 dark:bg-blue-900/20 w-20 h-20 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-blue-600">
               <Activity size={40} />

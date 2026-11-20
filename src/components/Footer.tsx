@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, MapPin, Calendar, FileText, Video, Pill, Receipt, Info, Users } from 'lucide-react';
+import { Mail, ShieldCheck, Lock, Calendar, FileText, Video, Pill, Receipt, Info, Users } from 'lucide-react';
 import { OlmeraWordmark } from './brand/OlmeraWordmark';
 
 interface FooterProps {
@@ -90,12 +90,12 @@ export function Footer({ setView }: FooterProps) {
                 <span className="truncate">care@olmera.health</span>
               </li>
               <li className="flex items-center gap-2">
-                <Phone size={13} className="text-[var(--color-primary)] flex-shrink-0" />
-                <span>+91 70321 30919</span>
+                <ShieldCheck size={13} className="text-[var(--color-primary)] flex-shrink-0" />
+                <span>HIPAA & EHR Data Safeguarded</span>
               </li>
               <li className="flex items-start gap-2">
-                <MapPin size={13} className="text-[var(--color-primary)] flex-shrink-0 mt-0.5" />
-                <span>Rajam, Andhra Pradesh, India</span>
+                <Lock size={13} className="text-[var(--color-primary)] flex-shrink-0 mt-0.5" />
+                <span>Direct patient lines protected behind portal authentication</span>
               </li>
             </ul>
           </div>

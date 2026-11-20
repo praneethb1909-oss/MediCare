@@ -4,7 +4,7 @@ import {
   Sparkles, Shield, User, X, FileText, Send, Phone 
 } from 'lucide-react';
 import { 
-  INTAKE_QUESTIONS, compileIntakeBrief, 
+  INTAKE_QUESTIONS, compileIntakeBrief, compileIntakeBriefWithLLM,
   PatientIntakeSubmission 
 } from '../services/ai/intakeAgent';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,23 +32,31 @@ export function AIPreConsultationModal({
     severity: 4
   });
   const [completedBrief, setCompletedBrief] = useState<PatientIntakeSubmission | null>(null);
+  const [isCompiling, setIsCompiling] = useState(false);
 
   if (!isOpen) return null;
 
   const currentQ = INTAKE_QUESTIONS[currentStep];
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < INTAKE_QUESTIONS.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Compile brief
-      const submission = compileIntakeBrief(
-        answers,
-        user?.displayName || 'Valued Patient',
-        appointmentId
-      );
-      setCompletedBrief(submission);
-      if (onComplete) onComplete(submission);
+      setIsCompiling(true);
+      try {
+        // Compile brief with NVIDIA AI Synthesis
+        const submission = await compileIntakeBriefWithLLM(
+          answers,
+          user?.displayName || 'Valued Patient',
+          appointmentId,
+          doctorName,
+          specialty
+        );
+        setCompletedBrief(submission);
+        if (onComplete) onComplete(submission);
+      } finally {
+        setIsCompiling(false);
+      }
     }
   };
 

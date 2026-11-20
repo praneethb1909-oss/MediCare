@@ -672,6 +672,7 @@ export function LLMRouterDashboard() {
                     onChange={(e) => setKeyFormData({ ...keyFormData, provider: e.target.value as LLMProvider })}
                     className="input-field w-full"
                   >
+                    <option value="nvidia">NVIDIA NIM / NVIDIA Build</option>
                     <option value="gemini">Google Gemini</option>
                     <option value="anthropic">Anthropic Claude</option>
                     <option value="openai">OpenAI</option>

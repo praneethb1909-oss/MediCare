@@ -3,7 +3,9 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (typeof process !== 'undefined' ? (process.env || {}) : {});
+
+const rawApiKey = env.VITE_FIREBASE_API_KEY;
 export const isFirebaseConfigured = Boolean(
   rawApiKey && 
   rawApiKey !== 'your_firebase_api_key_here' &&
@@ -15,12 +17,12 @@ export const isFirebaseConfigured = Boolean(
 
 const firebaseConfig = {
   apiKey: rawApiKey || 'AIzaSyDemoLocalTestingKey1234567890',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'olmera-app.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'olmera-app',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'olmera-app.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890abcdef',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-XXXXXXXXXX'
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || 'olmera-app.firebaseapp.com',
+  projectId: env.VITE_FIREBASE_PROJECT_ID || 'olmera-app',
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || 'olmera-app.appspot.com',
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
+  appId: env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890abcdef',
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || 'G-XXXXXXXXXX'
 };
 
 if (!isFirebaseConfigured) {

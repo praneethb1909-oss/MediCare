@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { maskEmail, maskPhone } from '../utils/masking';
 
 interface PaymentPageProps {
   amount: number;
@@ -174,7 +175,7 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text('Main Road, Health City', 20, 45);
-    doc.text('Phone: +91 94401 23456', 20, 50);
+    doc.text('Careline: 1800-OLMERA (24/7 Verified Support)', 20, 50);
 
     // Patient Info
     doc.setFontSize(12);
@@ -183,7 +184,7 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text(`Name: ${user?.displayName || 'Valued Patient'}`, 20, 75);
-    doc.text(`Email: ${user?.email || 'N/A'}`, 20, 80);
+    doc.text(`Email: ${maskEmail(user?.email)}`, 20, 80);
 
     // Service Table
     doc.setDrawColor(200);

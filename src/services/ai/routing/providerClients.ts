@@ -35,7 +35,7 @@ export async function executeProviderCall(
   keyConfig: LLMKeyConfig,
   prompt: string,
   systemInstruction?: string,
-  temperature: number = 0.7,
+  temperature: number = 0.5,
   maxTokens: number = 1024
 ): Promise<ProviderCallResult> {
   const startTime = Date.now();
@@ -56,6 +56,7 @@ export async function executeProviderCall(
       return callGoogleGemini(keyConfig, prompt, systemInstruction, temperature, maxTokens, startTime);
     case 'anthropic':
       return callAnthropicClaude(keyConfig, prompt, systemInstruction, temperature, maxTokens, startTime);
+    case 'nvidia':
     case 'openai':
     case 'custom':
       return callOpenAICompatible(keyConfig, prompt, systemInstruction, temperature, maxTokens, startTime);
@@ -171,19 +172,20 @@ async function callAnthropicClaude(
 }
 
 // -----------------------------------------------------------------------------
-// OpenAI / Custom Endpoint Adapter
+// OpenAI / NVIDIA NIM / Custom Endpoint Adapter
 // -----------------------------------------------------------------------------
 async function callOpenAICompatible(
   key: LLMKeyConfig,
   prompt: string,
   systemInstruction: string | undefined,
-  temperature: number,
-  maxTokens: number,
-  startTime: number
+  temperature: number = 0.5,
+  maxTokens: number = 1024,
+  startTime: number = Date.now()
 ): Promise<ProviderCallResult> {
-  const baseUrl = key.baseUrl || 'https://api.openai.com/v1';
+  const isNvidia = key.provider === 'nvidia' || key.apiKey.startsWith('nvapi-');
+  const baseUrl = key.baseUrl || (isNvidia ? 'https://integrate.api.nvidia.com/v1' : 'https://api.openai.com/v1');
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
-  const model = key.model || 'gpt-4o-mini';
+  const model = key.model || (isNvidia ? 'mistralai/mistral-large-4-1t-a52b' : 'gpt-4o-mini');
 
   const messages: any[] = [];
   if (systemInstruction) {
@@ -191,30 +193,48 @@ async function callOpenAICompatible(
   }
   messages.push({ role: 'user', content: prompt });
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key.apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens
-    })
-  });
+  const makeRequest = async (targetModel: string) => {
+    return await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: targetModel,
+        messages,
+        temperature,
+        max_tokens: maxTokens
+      })
+    });
+  };
+
+  let res = await makeRequest(model);
+
+  // If NVIDIA model returns 404 for a custom alias (e.g. NVIDIABuild-Autogen-42), retry with active catalog model
+  if (!res.ok && res.status === 404 && isNvidia && model !== 'mistralai/mistral-large-4-1t-a52b') {
+    console.warn(`Model "${model}" returned 404, falling back to "mistralai/mistral-large-4-1t-a52b"...`);
+    res = await makeRequest('mistralai/mistral-large-4-1t-a52b');
+  }
 
   const latencyMs = Date.now() - startTime;
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    const msg = err?.error?.message || `OpenAI-compatible error: ${res.status}`;
+    const msg = err?.error?.message || `${isNvidia ? 'NVIDIA NIM' : 'OpenAI-compatible'} API error: ${res.status}`;
     throw new ProviderAPIError(msg, res.status);
   }
 
   const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content || '';
+  const choice = data?.choices?.[0];
+  const msgObj = choice?.message;
+  let text = msgObj?.content || '';
+
+  // For reasoning models (e.g. Mistral Large on NVIDIA NIM), content might be in reasoning_content if max_tokens was tight
+  if (!text && msgObj?.reasoning_content) {
+    text = msgObj.reasoning_content;
+  }
+
   const promptTokens = data?.usage?.prompt_tokens || Math.ceil(prompt.length / 4);
   const completionTokens = data?.usage?.completion_tokens || Math.ceil(text.length / 4);
 

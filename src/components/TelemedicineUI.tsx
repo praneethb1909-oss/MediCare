@@ -41,7 +41,7 @@ interface SharedDoc {
   uploadedAt: string;
 }
 
-export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: TelemedicineUIProps) {
+export function TelemedicineUI({ doctorName = "Consulting Specialist", onBack }: TelemedicineUIProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -49,15 +49,7 @@ export function TelemedicineUI({ doctorName = "Dr. Ramesh Babu", onBack }: Telem
   const [step, setViewStep] = useState<'checklist' | 'upload' | 'call' | 'summary'>('checklist');
   const [checklist, setChecklist] = useState<boolean[]>([false, false, false, false]);
 
-  const [uploadedDocs, setUploadedDocs] = useState<SharedDoc[]>([
-    { 
-      id: 'doc-seed-1', 
-      name: 'Blood_Test_Feb24.pdf', 
-      url: 'https://example.com/blood-test.pdf', 
-      size: '2.4 MB', 
-      uploadedAt: '10:42 AM' 
-    }
-  ]);
+  const [uploadedDocs, setUploadedDocs] = useState<SharedDoc[]>([]);
   const [previewDoc, setPreviewDoc] = useState<SharedDoc | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 

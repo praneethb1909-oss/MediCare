@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { maskPhone } from '../utils/masking';
 
 interface Appointment {
   id: string;
@@ -216,7 +217,7 @@ export function MyAppointments() {
                           <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{apt.patient.full_name}</h3>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                              <Phone size={12} /> {apt.patient.phone}
+                              <Phone size={12} /> {maskPhone(apt.patient.phone)}
                             </span>
                             <span className="text-slate-300">•</span>
                             <span className="text-xs font-bold text-slate-400 flex items-center gap-1">

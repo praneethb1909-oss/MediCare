@@ -10,9 +10,11 @@ import {
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { maskEmail, maskPhone } from '../utils/masking';
 import { 
   generatePatientPreConsultSummary, 
   generateClinicalDocument, 
+  generateClinicalDocumentWithLLM,
   PatientHistorySummary, 
   ClinicalDocumentDraft 
 } from '../services/ai/patientSummarizer';
@@ -117,45 +119,7 @@ export function DoctorPatients() {
         }
       }
 
-      if (patientDetails.length === 0) {
-        setPatients([
-          {
-            id: 'pat-ramesh-01',
-            full_name: 'Ramesh Varma',
-            email: 'ramesh.varma@example.com',
-            phone: '+91 98480 22334',
-            last_visit: '2026-11-10',
-            total_appointments: 4,
-            gender: 'Male',
-            age: 48,
-            blood_group: 'O+'
-          },
-          {
-            id: 'pat-lakshmi-02',
-            full_name: 'Lakshmi Devi',
-            email: 'lakshmi.devi@example.com',
-            phone: '+91 94401 55667',
-            last_visit: '2026-11-02',
-            total_appointments: 6,
-            gender: 'Female',
-            age: 54,
-            blood_group: 'B+'
-          },
-          {
-            id: 'pat-ananya-03',
-            full_name: 'Ananya Reddy',
-            email: 'ananya.reddy@example.com',
-            phone: '+91 91000 88991',
-            last_visit: '2026-10-25',
-            total_appointments: 2,
-            gender: 'Female',
-            age: 29,
-            blood_group: 'A+'
-          }
-        ]);
-      } else {
-        setPatients(patientDetails);
-      }
+      setPatients(patientDetails);
     } catch (err: any) {
       console.error('Error loading patients:', err);
       setError(`Failed to synchronize patient registry: ${err.message || 'Unknown error'}`);
@@ -263,11 +227,11 @@ export function DoctorPatients() {
                 <div className="grid grid-cols-1 gap-3">
                   <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Mail size={16} className="text-slate-400" />
-                    <span className="truncate">{patient.email}</span>
+                    <span className="truncate">{maskEmail(patient.email)}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Phone size={16} className="text-slate-400" />
-                    <span>{patient.phone}</span>
+                    <span>{maskPhone(patient.phone)}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Calendar size={16} className="text-slate-400" />
@@ -293,9 +257,9 @@ export function DoctorPatients() {
                       <span>1-Page Summary</span>
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedPatientForDoc(patient);
-                        const draft = generateClinicalDocument(
+                        const draft = await generateClinicalDocumentWithLLM(
                           'referral_letter',
                           patient.full_name,
                           doctorName,
@@ -439,7 +403,9 @@ export function DoctorPatients() {
                     Current Medications & Smart Adherence
                   </span>
                   <span className="text-xs font-semibold text-[var(--color-primary)]">
-                    Aggregated Adherence: 91%
+                    Aggregated Adherence: {activeSummary.activeMedications.length > 0
+                      ? Math.round(activeSummary.activeMedications.reduce((sum, m) => sum + m.adherencePct, 0) / activeSummary.activeMedications.length)
+                      : 0}%
                   </span>
                 </div>
                 <div className="space-y-2">
@@ -596,8 +562,8 @@ export function DoctorPatients() {
               ].map((tmpl) => (
                 <button
                   key={tmpl.type}
-                  onClick={() => {
-                    const newDraft = generateClinicalDocument(
+                  onClick={async () => {
+                    const newDraft = await generateClinicalDocumentWithLLM(
                       tmpl.type as any,
                       selectedPatientForDoc.full_name,
                       doctorName,
